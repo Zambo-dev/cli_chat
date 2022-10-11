@@ -16,12 +16,14 @@
 pthread_mutex_t fd_mtx = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t sock_mtx = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t errno_mtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t tdata_mtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_t pool[CONNLIMIT];
 int running = 1;
 
 typedef struct CONN_T
 {
 	int fd;
-	int status;
+	char ip[32];
 } conn_t;
 
 typedef struct SOCK_T
@@ -30,6 +32,12 @@ typedef struct SOCK_T
 	conn_t **conns;
 	struct sockaddr_in host;
 } sock_t;
+
+typedef struct THREAD_DATA
+{
+	sock_t *sock;
+	int idx;
+} tdata_t;
 
 int errck()
 {
@@ -63,18 +71,18 @@ int server_conns_getfree(conn_t **conns)
 	return -1;
 }
 
-int server_conns_set(conn_t **conn, int fd)
+int server_conns_set(conn_t **conn, int fd, char *ip)
 {
 	pthread_mutex_lock(&fd_mtx);
 
 	*conn = (conn_t *)calloc(1, sizeof(conn_t));
 
 	(*conn)->fd = fd;
-	printf("set fd to %d\n", (*conn)->fd);
-	(*conn)->status = 1;
+	strcpy((*conn)->ip, ip);
+	if(errck() == -1) return -1;
 
 	pthread_mutex_unlock(&fd_mtx);
-	return -1;
+	return 0;
 }
 
 int server_conns_close(conn_t **conn)
@@ -88,7 +96,7 @@ int server_conns_close(conn_t **conn)
 		return -1;
 	}
 	free(*conn);
-
+	*conn = NULL;
 	pthread_mutex_unlock(&fd_mtx);
 	printf("Connection closed!\n");
 
@@ -124,17 +132,71 @@ int sock_close(sock_t *sock)
 	memset(&sock->host, 0, sizeof(struct sockaddr_in));
 	if(sock->conns != NULL)
 	{
-		for(size_t i=0; i<BUFFERLEN; ++i)
+		for(size_t i=0; i<CONNLIMIT; ++i)
 			if(sock->conns[i] != NULL)
-				free(sock->conns[i]);
+				server_conns_close(&sock->conns[i]);
 		free(sock->conns);
 	}
 
 	pthread_mutex_unlock(&sock_mtx);
+	puts("Socket closed!");
+
 
 	return 0;
 }
 
+int server_send(sock_t *server, int idx, char *buffer)
+{
+	for(size_t i=0; i<CONNLIMIT; ++i)
+	{
+		if(server->conns[i] != NULL && i != idx)
+		{
+			send(server->conns[i]->fd, buffer, BUFFERLEN, 0);
+			if(errck() == -1) return -1;
+		}
+	}
+
+}
+
+int server_recv(tdata_t *data)
+{
+	sock_t *server = data->sock;
+	int idx = data->idx;
+	
+	pthread_mutex_unlock(&tdata_mtx);
+
+	char buffer[BUFFERLEN] = {0};
+	conn_t *c = server->conns[idx];
+	int retval;
+	int error = 0;
+
+	while(1)
+	{
+		retval = 1;
+		while(1)
+		{
+			retval = recv(c->fd, buffer, BUFFERLEN, 0);
+			printf("retval: %d\n", retval);
+			if(errck() == -1 || retval == 0)
+			{
+				error = 1;
+				break;
+			}
+
+			fprintf(stdout, "%s: %s\n", c->ip, buffer);
+			fflush(stdout);
+			
+			server_send(server, idx, buffer);
+
+			memset(buffer, 0, BUFFERLEN);
+		}
+		if(error) break;
+	}
+
+	server_conns_close(&c);
+
+	return 0;
+}
 
 int server_connect(sock_t *server)
 {
@@ -150,39 +212,25 @@ int server_connect(sock_t *server)
 
 	int idx;
 
-	//while(running)
+	while(running)
 	{
 		while((idx = server_conns_getfree(server->conns)) == -1);
 
 		int fd_tmp = accept(server->fd, (struct sockaddr *)&server->host, &len);
-		//if(errck() == -1) continue;
+		if(errck() == -1) continue;
 
-		server_conns_set(&server->conns[idx], fd_tmp);
-		printf("Connected to %d -> %d\n", fd_tmp, idx);
+		struct sockaddr_in client;
+		socklen_t client_len = sizeof(server->host);
+		getpeername(fd_tmp, (struct sockaddr *)&client, &client_len);
+		server_conns_set(&server->conns[idx], fd_tmp, inet_ntoa(client.sin_addr));
+		printf("Connected to %d -> %s\n", fd_tmp, server->conns[idx]->ip);
+
+		pthread_mutex_lock(&tdata_mtx);
+		tdata_t tmp = {server, idx};
+		pthread_create(&pool[idx], NULL, (void *)server_recv, (void *)&tmp);
 	}
 
 	return 0;
-}
-
-int server_comm(sock_t *server, int idx)
-{
-	char buffer[BUFFERLEN] = {0};
-
-	while(1)
-	{		
-		int tmp;
-		while((tmp = recv(server->conns[0]->fd, buffer, BUFFERLEN, 0)) != 0)
-		{
-			printf("tmp: %d\n", tmp);
-			fflush(stdout);
-			if(errck() == -1) return -1;
-
-			fprintf(stdout, "Client: %s\n", buffer);
-			fflush(stdout);
-
-			memset(buffer, 0, BUFFERLEN);
-		}
-	}
 }
 
 int client_send(sock_t *client)
@@ -275,7 +323,9 @@ int main(int argc, char* argv[])
 		sock_t server;
 		if(sock_init(&server, NULL, argv[2]) == -1) return EXIT_FAILURE;
 		if(server_connect(&server) == -1) return EXIT_FAILURE;
-		if(server_comm(&server, 0) == -1) return EXIT_FAILURE;
+		
+		while(1);
+		
 		if(sock_close(&server) == -1) return EXIT_FAILURE;
 	}
 	else
