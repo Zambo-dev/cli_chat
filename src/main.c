@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
 		pthread_create(&send_thd, NULL, (void *)client_send, (void *)&client);
 		pthread_create(&recv_thd, NULL, (void *)client_recv, (void *)&client);
 
-		while(1);
+		while(running);
 
 		if(sock_close(&client) == -1) return EXIT_FAILURE;
 	}

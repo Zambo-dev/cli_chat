@@ -99,6 +99,7 @@ int server_recv(tdata_t *data)
 	pthread_mutex_unlock(&tdata_mtx);
 
 	char buffer[BUFFERLEN] = {0};
+	char buffer2[BUFFERLEN] = {0};
 	conn_t *c = server->conns[idx];
 	int retval;
 	int error = 0;
@@ -106,23 +107,29 @@ int server_recv(tdata_t *data)
 	while(1)
 	{
 		retval = 1;
+
 		while(1)
 		{
+		
+			snprintf(buffer2, BUFFERLEN, "%s: ", c->ip);
 			retval = recv(c->fd, buffer, BUFFERLEN, 0);
-			printf("retval: %d\n", retval);
 			if(errck() == -1 || retval == 0)
 			{
 				error = 1;
 				break;
 			}
 
-			fprintf(stdout, "%s: %s\n", c->ip, buffer);
+			strcat(buffer2, buffer);
+
+			printf("%s", buffer2);
 			fflush(stdout);
-			
-			server_send(server, idx, buffer);
+
+			server_send(server, idx, buffer2);
 
 			memset(buffer, 0, BUFFERLEN);
+			memset(buffer2, 0, BUFFERLEN);
 		}
+
 		if(error) break;
 	}
 
@@ -137,7 +144,7 @@ int server_send(sock_t *server, int idx, char *buffer)
 	{
 		if(server->conns[i] != NULL && i != idx)
 		{
-			send(server->conns[i]->fd, buffer, BUFFERLEN, 0);
+			send(server->conns[i]->fd, buffer, strlen(buffer), 0);
 			if(errck() == -1) return -1;
 		}
 	}

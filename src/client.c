@@ -26,26 +26,25 @@ int client_connect(sock_t *client)
 int client_recv(sock_t *client)
 {
 	char buffer[BUFFERLEN] = {0};
-	int bytes;
+	int retval;
 
-	printf("\x1b[5;1HServer: ");
-	fflush(stdout);
-
-	while(1)
+	do
 	{
-		while(read(client->fd, buffer, BUFFERLEN) != 0)
-		{	
-			if(errck() == -1) return -1;
-
-			fprintf(stdout, "\x1b[5;10H%s\n", buffer);
-			fflush(stdout);
-
-			memset(buffer, 0, BUFFERLEN);
+		retval = recv(client->fd, buffer, BUFFERLEN, 0);
+		printf("RETVAL: %d\n", retval);
+		if(errck() == -1 || retval == 0) 
+		{
+			puts("Connection closed!");
+			running = 0;
+			return -1;
 		}
 
-		printf("\x1b[10;1HClient: ");
+		fprintf(stdout, "\x1b[5;1H%s\x1b[10;10H", buffer);
 		fflush(stdout);
+
+		memset(buffer, 0, BUFFERLEN);
 	}
+	while(running);
 
 	return 0;
 }
@@ -54,9 +53,9 @@ int client_send(sock_t *client)
 {
 	char buffer[BUFFERLEN] = {0};
 
-	while(1)
+	while(running)
 	{
-		printf("\x1b[10;1HClient: ");
+		printf("\x1b[10;1HClient: \x1b[0K");
 		fflush(stdout);
 		fgets(buffer, BUFFERLEN, stdin);
 		fflush(stdin);
