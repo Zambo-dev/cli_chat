@@ -33,8 +33,8 @@ void client_recv(sock_t *client)
 			pthread_mutex_unlock(&run_mtx);
 			
 			printf("\x1b[%d;1H\x1b[0KServer: Connection closed! Press ENTER to quit.\x1b[%d;1HClient: ", serv_row, cli_row);
-			buffer[strlen(buffer)-1] = '\0';
 			fflush(stdout);
+
 			++serv_row;
 
 			break;
@@ -48,8 +48,11 @@ void client_recv(sock_t *client)
 		else
 			++serv_row;
 
-		printf("\x1b[%d;1H\x1b[0K%s\x1b[%d;1HClient: ", serv_row, buffer, cli_row);
-		fflush(stdout);
+		if(running)
+		{
+			printf("\x1b[%d;1H\x1b[0K%s\x1b[%d;1HClient: ", serv_row, buffer, cli_row);
+			fflush(stdout);
+		}
 
 		memset(buffer, 0, BUFFERLEN);
 	}
@@ -74,11 +77,23 @@ void client_send(sock_t *client)
 			pthread_mutex_lock(&run_mtx);
 			running = 0;
 			pthread_mutex_unlock(&run_mtx);
+			
 			break;
+		}
+
+		if(strncmp(buffer, "/quit\n", 7) == 0)
+		{
+			pthread_mutex_lock(&run_mtx);
+			running = 0;
+			pthread_mutex_unlock(&run_mtx);
+
+			break;	
 		}
 
 		memset(buffer, 0, BUFFERLEN);
 	}
+
+	sock_close(client);
 
 	pthread_exit(0);
 }

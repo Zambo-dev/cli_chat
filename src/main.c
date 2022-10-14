@@ -32,8 +32,6 @@ int main(int argc, char* argv[])
 		puts("Closed sending thread!");
 		while(pthread_join(recv_thd, 0) != 0);
 		puts("Closed receiving thread!");
-
-		if(sock_close(&client) == -1) return EXIT_FAILURE;
 	}
 	else if(argv[1][0] == 's')	/* Server code */
 	{
@@ -42,22 +40,23 @@ int main(int argc, char* argv[])
 		pthread_t server_thd;
 		pthread_create(&server_thd, NULL, (void *)server_connect, (void *)&server);
 
-		char command = 0;
-		while(command != 'q')
-			command = fgetc(stdin);
+		char command[32] = {0};
+		do
+		{
+			read(STDIN_FILENO, command, 32);
+		}
+		while(strstr(command, "/quit") == NULL);
 
 		running = 0;
-		for(int i=0; i<CONNLIMIT; ++i)
-		{
-			printf("Value of thread: %lu\n", pool[i]);
-		}
-
 
 		if(sock_close(&server) == -1) return EXIT_FAILURE;
+		
+		for(int i=0; i<CONNLIMIT; ++i)
+			printf("Threads status: %lu\n", pool[i]);
 	}
 	else
 	{
-		puts("Wront paramenter! <s/c> <ip> <port>");
+		puts("Wrong paramenter! <s/c> <ip> <port>");
 		return EXIT_FAILURE;
 	}
 

@@ -47,10 +47,10 @@ int sock_close(sock_t *sock)
 	{
 		for(size_t i=0; i<CONNLIMIT; ++i)
 			if(sock->conns[i] != NULL)
-				server_conns_close(&sock->conns[i]);
+				server_conns_close(sock, i);
 		free(sock->conns);
 	}
-
+	
 	pthread_mutex_unlock(&sock_mtx);
 	puts("Socket closed!");
 

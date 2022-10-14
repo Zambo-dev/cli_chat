@@ -1,6 +1,6 @@
 # Compiler settings
 CC = clang
-CCFLAGS := -lpthread
+CCFLAGS := -ggdb -lpthread
 
 # Folders
 SRC = src
