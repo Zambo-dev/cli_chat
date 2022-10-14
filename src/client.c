@@ -1,11 +1,5 @@
 #include "include.h"
 
-extern pthread_mutex_t fd_mtx;
-extern pthread_mutex_t sock_mtx;
-extern pthread_mutex_t errno_mtx;
-extern pthread_mutex_t tdata_mtx;
-extern pthread_t pool[CONNLIMIT];
-extern int running;
 
 int client_connect(sock_t *client)
 {	
@@ -23,48 +17,68 @@ int client_connect(sock_t *client)
 	return connfd;
 }
 
-int client_recv(sock_t *client)
+void client_recv(sock_t *client)
 {
 	char buffer[BUFFERLEN] = {0};
 	int retval;
+	int serv_row = 5;
 
-	do
+	while(running)
 	{
 		retval = recv(client->fd, buffer, BUFFERLEN, 0);
-		printf("RETVAL: %d\n", retval);
 		if(errck() == -1 || retval == 0) 
 		{
-			puts("Connection closed!");
+			pthread_mutex_lock(&run_mtx);
 			running = 0;
-			return -1;
+			pthread_mutex_unlock(&run_mtx);
+			
+			printf("\x1b[%d;1H\x1b[0KServer: Connection closed! Press ENTER to quit.\x1b[%d;1HClient: ", serv_row, cli_row);
+			buffer[strlen(buffer)-1] = '\0';
+			fflush(stdout);
+			++serv_row;
+
+			break;
 		}
 
-		fprintf(stdout, "\x1b[5;1H%s\x1b[10;10H", buffer);
+		if(serv_row == cli_row-1)
+		{
+			printf("\n\n");
+			fflush(stdout);
+		}
+		else
+			++serv_row;
+
+		printf("\x1b[%d;1H\x1b[0K%s\x1b[%d;1HClient: ", serv_row, buffer, cli_row);
 		fflush(stdout);
 
 		memset(buffer, 0, BUFFERLEN);
 	}
-	while(running);
-
-	return 0;
+	
+	pthread_exit(0);
 }
 
-int client_send(sock_t *client)
+void client_send(sock_t *client)
 {
 	char buffer[BUFFERLEN] = {0};
 
 	while(running)
 	{
-		printf("\x1b[10;1HClient: \x1b[0K");
+		printf("\x1b[%d;1HClient: \x1b[0K", cli_row);
 		fflush(stdout);
-		fgets(buffer, BUFFERLEN, stdin);
+		read(STDIN_FILENO, buffer, BUFFERLEN);
 		fflush(stdin);
-
-		send(client->fd, buffer, BUFFERLEN, 0);
 		
-		if(errck() == -1) return -1;
+		send(client->fd, buffer, BUFFERLEN, 0);
+		if(errck() == -1)
+		{
+			pthread_mutex_lock(&run_mtx);
+			running = 0;
+			pthread_mutex_unlock(&run_mtx);
+			break;
+		}
+
 		memset(buffer, 0, BUFFERLEN);
 	}
 
-	return 0;
+	pthread_exit(0);
 }

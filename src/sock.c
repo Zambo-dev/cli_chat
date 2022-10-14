@@ -1,11 +1,5 @@
 #include "include.h"
 
-extern pthread_mutex_t fd_mtx;
-extern pthread_mutex_t sock_mtx;
-extern pthread_mutex_t errno_mtx;
-extern pthread_mutex_t tdata_mtx;
-extern pthread_t pool[CONNLIMIT];
-extern int running;
 
 int errck()
 {

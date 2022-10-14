@@ -6,7 +6,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -20,8 +22,10 @@ extern pthread_mutex_t fd_mtx;
 extern pthread_mutex_t sock_mtx;
 extern pthread_mutex_t errno_mtx;
 extern pthread_mutex_t tdata_mtx;
+extern pthread_mutex_t run_mtx;
 extern pthread_t pool[CONNLIMIT];
 extern int running;
+extern int cli_row;
 
 typedef struct CONN_T
 {
@@ -50,15 +54,15 @@ int sock_close(sock_t *sock);
 
 /* Client functions */
 int client_connect(sock_t *client);
-int client_recv(sock_t *client);
-int client_send(sock_t *client);
+void client_recv(sock_t *client);
+void client_send(sock_t *client);
 
 /* Server functions */
 int server_conns_init(conn_t **conn, int fd, char *ip);
 int server_conns_close(conn_t **conn);
 int server_conns_getfree(conn_t **conns);
 int server_connect(sock_t *server);
-int server_recv(tdata_t *data);
-int server_send(sock_t *server, int idx, char *buffer);
+void server_recv(tdata_t *data);
+void server_send(sock_t *server, int idx, char *buffer);
 
 #endif
