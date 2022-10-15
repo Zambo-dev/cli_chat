@@ -3,16 +3,26 @@
 
 int client_connect(sock_t *client)
 {	
-	pthread_mutex_lock(&fd_mtx);
+	/* Lock socket mutex*/
+	pthread_mutex_lock(&sock_mtx);
 
 	/* Connect to the server */
 	socklen_t len = sizeof(client->host);
 	int connfd = connect(client->fd, (struct sockaddr *)&client->host, len);
-	
-	pthread_mutex_unlock(&fd_mtx);
-	
-	if(errck() != 0) return -1;
-	printf("Connected!\n");
+	if(errck() == -1)
+	{
+		/* Unlock socket mutex */
+		pthread_mutex_unlock(&sock_mtx);
+		
+		return -1;
+	}
+
+	/* Print connection message */
+	printf("Connected to %s!\n", inet_ntoa(client->host.sin_addr));
+	fflush(stdout);
+
+	/* Unlock socket mutex */
+	pthread_mutex_unlock(&sock_mtx);
 
 	return connfd;
 }
@@ -27,9 +37,11 @@ void client_recv(sock_t *client)
 	{
 		retval = recv(client->fd, buffer, BUFFERLEN, 0);
 		if(errck() == -1 || retval == 0) 
-		{
+		{	
+			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
 			running = 0;
+			/* Unlock running mutex */
 			pthread_mutex_unlock(&run_mtx);
 			
 			printf("\x1b[%d;1H\x1b[0KServer: Connection closed! Press ENTER to quit.\x1b[%d;1HClient: ", serv_row, cli_row);
@@ -48,11 +60,8 @@ void client_recv(sock_t *client)
 		else
 			++serv_row;
 
-		if(running)
-		{
-			printf("\x1b[%d;1H\x1b[0K%s\x1b[%d;1HClient: ", serv_row, buffer, cli_row);
-			fflush(stdout);
-		}
+		printf("\x1b[%d;1H\x1b[0K%s\x1b[%d;1HClient: ", serv_row, buffer, cli_row);
+		fflush(stdout);
 
 		memset(buffer, 0, BUFFERLEN);
 	}
@@ -74,8 +83,10 @@ void client_send(sock_t *client)
 		send(client->fd, buffer, BUFFERLEN, 0);
 		if(errck() == -1)
 		{
+			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
 			running = 0;
+			/* Unock running mutex */
 			pthread_mutex_unlock(&run_mtx);
 			
 			break;
@@ -83,8 +94,10 @@ void client_send(sock_t *client)
 
 		if(strncmp(buffer, "/quit\n", 7) == 0)
 		{
+			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
 			running = 0;
+			/* Unock running mutex */
 			pthread_mutex_unlock(&run_mtx);
 
 			break;	

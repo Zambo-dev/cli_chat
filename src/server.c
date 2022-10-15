@@ -116,15 +116,9 @@ void server_recv(tdata_t *data)
 		printf("%s", buffer2);
 		fflush(stdout);
 
-		if(strncmp(buffer, "/quit\n", 7) == 0)
-		{
-			pthread_mutex_lock(&fd_mtx);
-			send(c->fd, buffer, strlen(buffer), 0);
-			pthread_mutex_unlock(&fd_mtx);
-			break;
-		}
-		else if(server_send(server, idx, buffer2) == -1)
-			break;
+		if(strncmp(buffer, "/quit\n", 7) == 0) break;
+		
+		if(server_send(server, idx, buffer2) == -1) break;
 
 		memset(buffer, 0, BUFFERLEN);
 		memset(buffer2, 0, BUFFERLEN);
@@ -139,7 +133,7 @@ int server_send(sock_t *server, int idx, char *buffer)
 	pthread_mutex_lock(&fd_mtx);
 	for(size_t i=0; i<CONNLIMIT; ++i)
 	{
-		if(server->conns[i] != NULL && i != idx)
+		if(server->conns[i] != NULL)
 		{
 			send(server->conns[i]->fd, buffer, strlen(buffer), 0);
 			if(errck() == -1)
