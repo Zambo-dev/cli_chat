@@ -6,7 +6,11 @@ int server_conns_init(conn_t **conn, int fd, char *ip)
 	pthread_mutex_lock(&fd_mtx);
 
 	*conn = (conn_t *)calloc(1, sizeof(conn_t));
-
+	if(errck() == -1)
+	{
+		pthread_mutex_unlock(&fd_mtx);
+		return -1;
+	}
 	(*conn)->fd = fd;
 	strcpy((*conn)->ip, ip);
 	if(errck() == -1)
@@ -22,9 +26,10 @@ int server_conns_init(conn_t **conn, int fd, char *ip)
 int server_conns_close(sock_t *server, int idx)
 {
 	pthread_mutex_lock(&fd_mtx);
+	int fd = server->conns[idx]->fd;
 
 	close(server->conns[idx]->fd);
-	if(errck() != 0)
+	if(errck() == -1)
 	{
 		pthread_mutex_unlock(&fd_mtx);
 		return -1;
@@ -34,10 +39,10 @@ int server_conns_close(sock_t *server, int idx)
 
 	pool[idx] = 0;
 
+	printf("Connection %d closed!\n", fd);
+	fflush(stdout);
+
 	pthread_mutex_unlock(&fd_mtx);
-
-	printf("Connection closed!\n");
-
 	return 0;
 }
 
@@ -60,15 +65,29 @@ int server_conns_getfree(conn_t **conns)
 
 int server_connect(sock_t *server)
 {
+	pthread_mutex_lock(&sock_mtx);
+
 	/* Bind the socket */
 	socklen_t len = sizeof(server->host);
 	bind(server->fd, (struct sockaddr *)&server->host, len);
-	if(errck() != 0) return -1;
+	if(errck() == -1)
+	{
+		pthread_mutex_unlock(&sock_mtx);
+		return -1;
+	}
 	puts("Socket binded!");
+	fflush(stdout);
 
 	listen(server->fd, CONNLIMIT);
-	if(errck() != 0) return -1;
+	if(errck() == -1)
+	{
+		pthread_mutex_unlock(&sock_mtx);
+		return -1;
+	}
 	puts("Listening...");
+	fflush(stdout);
+
+	pthread_mutex_unlock(&sock_mtx);
 
 	int idx;
 
@@ -84,7 +103,11 @@ int server_connect(sock_t *server)
 
 		getpeername(fd_tmp, (struct sockaddr *)&client, &client_len);
 		
-		server_conns_init(&server->conns[idx], fd_tmp, inet_ntoa(client.sin_addr));
+		if(server_conns_init(&server->conns[idx], fd_tmp, inet_ntoa(client.sin_addr)) == -1)
+		{
+			server_conns_close(&server, idx);
+			continue;
+		}
 		printf("Connected to %d -> %s\n", fd_tmp, server->conns[idx]->ip);
 		fflush(stdout);
 
@@ -95,7 +118,7 @@ int server_connect(sock_t *server)
 	return 0;
 }
 
-void server_recv(tdata_t *data)
+int server_recv(tdata_t *data)
 {
 	sock_t *server = data->sock;
 	int idx = data->idx;
@@ -126,6 +149,7 @@ void server_recv(tdata_t *data)
 
 	server_conns_close(server, idx);
 	pthread_exit(0);
+	return 0;
 }
 
 int server_send(sock_t *server, int idx, char *buffer)
@@ -145,6 +169,5 @@ int server_send(sock_t *server, int idx, char *buffer)
 	}
 
 	pthread_mutex_unlock(&fd_mtx);
-
 	return 0;
 }

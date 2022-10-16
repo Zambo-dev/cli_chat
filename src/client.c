@@ -8,30 +8,27 @@ int client_connect(sock_t *client)
 
 	/* Connect to the server */
 	socklen_t len = sizeof(client->host);
-	int connfd = connect(client->fd, (struct sockaddr *)&client->host, len);
+	connect(client->fd, (struct sockaddr *)&client->host, len);
 	if(errck() == -1)
 	{
 		/* Unlock socket mutex */
 		pthread_mutex_unlock(&sock_mtx);
-		
 		return -1;
 	}
-
 	/* Print connection message */
 	printf("Connected to %s!\n", inet_ntoa(client->host.sin_addr));
 	fflush(stdout);
 
 	/* Unlock socket mutex */
 	pthread_mutex_unlock(&sock_mtx);
-
-	return connfd;
+	return 0;
 }
 
-void client_recv(sock_t *client)
+int client_recv(sock_t *client)
 {
 	char buffer[BUFFERLEN] = {0};
 	int retval;
-	int serv_row = 5;
+	int serv_row = 6;
 
 	while(running)
 	{
@@ -44,12 +41,11 @@ void client_recv(sock_t *client)
 			/* Unlock running mutex */
 			pthread_mutex_unlock(&run_mtx);
 			
-			printf("\x1b[%d;1H\x1b[0KServer: Connection closed! Press ENTER to quit.\x1b[%d;1HClient: ", serv_row, cli_row);
+			printf("\x1b[%d;1H\x1b[0KServer: Connection closed!\x1b[%d;1HClient: ", serv_row, cli_row);
 			fflush(stdout);
 
-			++serv_row;
-
-			break;
+			pthread_exit(0);
+			return -1;
 		}
 
 		if(serv_row == cli_row-1)
@@ -67,9 +63,10 @@ void client_recv(sock_t *client)
 	}
 	
 	pthread_exit(0);
+	return 0;
 }
 
-void client_send(sock_t *client)
+int client_send(sock_t *client)
 {
 	char buffer[BUFFERLEN] = {0};
 
@@ -89,7 +86,8 @@ void client_send(sock_t *client)
 			/* Unock running mutex */
 			pthread_mutex_unlock(&run_mtx);
 			
-			break;
+			pthread_exit(0);
+			return -1;
 		}
 
 		if(strncmp(buffer, "/quit\n", 7) == 0)
@@ -106,7 +104,6 @@ void client_send(sock_t *client)
 		memset(buffer, 0, BUFFERLEN);
 	}
 
-	sock_close(client);
-
 	pthread_exit(0);
+	return 0;
 }

@@ -15,12 +15,11 @@ int errck()
 		errno = 0;
 		/* Unock errno mutex */
 		pthread_mutex_unlock(&errno_mtx);
-		
 		return -1;
 	}
+
 	/* Unock errno mutex */
 	pthread_mutex_unlock(&errno_mtx);
-
 	return 0;
 }
 
@@ -31,21 +30,36 @@ int sock_init(sock_t *sock, char* ip, char *port)
 
 	/* Create socket */
 	sock->fd = socket(AF_INET, SOCK_STREAM, 0);
-	if(errck() != 0) return -1;
+	if(errck() == -1)
+	{
+		/* Unock scoket mutex */
+		pthread_mutex_unlock(&sock_mtx);
+		return -1;
+	}
 	/* Setup host data */
 	sock->host.sin_family = AF_INET;
 	sock->host.sin_port = htons(strtol(port, NULL, 10));
 	sock->host.sin_addr.s_addr = (ip == NULL) ? INADDR_ANY : inet_addr(ip);
-	errck();
+	if(errck() == -1)
+	{
+		/* Unock scoket mutex */
+		pthread_mutex_unlock(&sock_mtx);
+		return -1;
+	}
 	/* Set conns only for server */
 	sock->conns = (ip == NULL) ? (conn_t **)calloc(CONNLIMIT, sizeof(conn_t)) : NULL;
+	if(errck() == -1)
+	{
+		/* Unock scoket mutex */
+		pthread_mutex_unlock(&sock_mtx);
+		return -1;
+	}
 	/* Print created socket */
 	printf("Socked %d created!\n", sock->fd);
 	fflush(stdout);
 
 	/* Unock scoket mutex */
 	pthread_mutex_unlock(&sock_mtx);
-
 	return 0;
 }
 
@@ -57,6 +71,12 @@ int sock_close(sock_t *sock)
 	int fd = sock->fd;
 	/* Close scoket fd */
 	close(sock->fd);
+	if(errck() == -1)
+	{
+		/* Unock scoket mutex */
+		pthread_mutex_unlock(&sock_mtx);
+		return -1;
+	}
 	sock->fd = 0;
 	/* Clear sockaddr_in struct */
 	memset(&sock->host, 0, sizeof(struct sockaddr_in));
@@ -64,16 +84,21 @@ int sock_close(sock_t *sock)
 	if(sock->conns != NULL)
 	{
 		for(size_t i=0; i<CONNLIMIT; ++i)
-			if(sock->conns[i] != NULL)
-				server_conns_close(sock, i);
+		{
+			if(sock->conns[i] != NULL && server_conns_close(sock, i) == -1)
+			{
+				/* Unock scoket mutex */
+				pthread_mutex_unlock(&sock_mtx);
+				return -1;
+			}
+		}
 		free(sock->conns);
 	}
 	/* Print closed */
-	printf("Socked %d created!\n", fd);
+	printf("Socked %d closed!\n", fd);
 	fflush(stdout);
 
 	/* Unock scoket mutex */
 	pthread_mutex_unlock(&sock_mtx);
-
 	return 0;
 }

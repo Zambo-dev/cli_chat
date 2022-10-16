@@ -10,6 +10,10 @@ int main(int argc, char* argv[])
 		puts("Missing parameters: <s/c> <ip> <port>");
 		return EXIT_FAILURE;
 	} 
+
+	printf("\x1b[2J\x1b[1;1H");
+	fflush(stdout);
+
 	if(argv[1][0] == 'c')	/* Client code */
 	{
 		struct winsize wsize;
@@ -32,6 +36,8 @@ int main(int argc, char* argv[])
 		puts("Closed sending thread!");
 		while(pthread_join(recv_thd, 0) != 0);
 		puts("Closed receiving thread!");
+
+		if(sock_close(&client) == -1) return EXIT_FAILURE;
 	}
 	else if(argv[1][0] == 's')	/* Server code */
 	{

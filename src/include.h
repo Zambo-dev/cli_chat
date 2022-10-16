@@ -54,15 +54,15 @@ int sock_close(sock_t *sock);
 
 /* Client functions */
 int client_connect(sock_t *client);
-void client_recv(sock_t *client);
-void client_send(sock_t *client);
+int client_recv(sock_t *client);
+int client_send(sock_t *client);
 
 /* Server functions */
 int server_conns_init(conn_t **conn, int fd, char *ip);
 int server_conns_close(sock_t *server, int idx);
 int server_conns_getfree(conn_t **conns);
 int server_connect(sock_t *server);
-void server_recv(tdata_t *data);
+int server_recv(tdata_t *data);
 int server_send(sock_t *server, int idx, char *buffer);
 
 #endif
