@@ -11,8 +11,8 @@ int server_conns_init(conn_t **conn, int fd, char *ip)
 		pthread_mutex_unlock(&fd_mtx);
 		return -1;
 	}
-	(*conn)->fd = fd;
-	strcpy((*conn)->ip, ip);
+	(*conn)->c_fd = fd;
+	strcpy((*conn)->c_ip, ip);
 	if(errck() == -1)
 	{
 		pthread_mutex_unlock(&fd_mtx);
@@ -26,9 +26,9 @@ int server_conns_init(conn_t **conn, int fd, char *ip)
 int server_conns_close(conn_t **conn, int idx)
 {
 	pthread_mutex_lock(&fd_mtx);
-	int fd = (*conn)->fd;
+	int fd = (*conn)->c_fd;
 
-	close((*conn)->fd);
+	close((*conn)->c_fd);
 	if(errck() == -1)
 	{
 		pthread_mutex_unlock(&fd_mtx);
@@ -68,8 +68,8 @@ int server_connect(sock_t *server)
 	pthread_mutex_lock(&sock_mtx);
 
 	/* Bind the socket */
-	socklen_t len = sizeof(server->host);
-	bind(server->fd, (struct sockaddr *)&server->host, len);
+	socklen_t len = sizeof(server->s_host);
+	bind(server->s_fd, (struct sockaddr *)&server->s_host, len);
 	if(errck() == -1)
 	{
 		pthread_mutex_unlock(&sock_mtx);
@@ -78,7 +78,7 @@ int server_connect(sock_t *server)
 	puts("Socket binded!");
 	fflush(stdout);
 
-	listen(server->fd, CONNLIMIT);
+	listen(server->s_fd, CONNLIMIT);
 	if(errck() == -1)
 	{
 		pthread_mutex_unlock(&sock_mtx);
@@ -95,32 +95,32 @@ int server_connect(sock_t *server)
 
 	while(running)
 	{
-		while((idx = server_conns_getfree(server->conns)) == -1);
+		while((idx = server_conns_getfree(server->s_conn_list)) == -1);
 
 		FD_ZERO(&readfd);
-		FD_SET(server->fd, &readfd);
+		FD_SET(server->s_fd, &readfd);
 
 
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
 
-		select(server->fd+1, &readfd, NULL, NULL, &tv);
-		if(!FD_ISSET(server->fd, &readfd)) continue;
+		select(server->s_fd + 1, &readfd, NULL, NULL, &tv);
+		if(!FD_ISSET(server->s_fd, &readfd)) continue;
 
-		int fd_tmp = accept(server->fd, (struct sockaddr *)&server->host, &len);
+		int fd_tmp = accept(server->s_fd, (struct sockaddr *)&server->s_host, &len);
 		if(errck() == -1) continue;
 
 		struct sockaddr_in client;
-		socklen_t client_len = sizeof(server->host);
+		socklen_t client_len = sizeof(server->s_host);
 
 		getpeername(fd_tmp, (struct sockaddr *)&client, &client_len);
 		
-		if(server_conns_init(&server->conns[idx], fd_tmp, inet_ntoa(client.sin_addr)) == -1)
+		if(server_conns_init(&server->s_conn_list[idx], fd_tmp, inet_ntoa(client.sin_addr)) == -1)
 		{
-			server_conns_close(&server->conns[idx], idx);
+			server_conns_close(&server->s_conn_list[idx], idx);
 			continue;
 		}
-		printf("Connected to %d -> %s\n", fd_tmp, server->conns[idx]->ip);
+		printf("Connected to %d -> %s\n", fd_tmp, server->s_conn_list[idx]->c_ip);
 		fflush(stdout);
 
 		tdata_t tmp = {server, idx};
@@ -137,7 +137,7 @@ int server_recv(tdata_t *data)
 
 	char buffer[BUFFERLEN] = {0};
 	char buffer2[BUFFERLEN] = {0};
-	conn_t *c = server->conns[idx];
+	conn_t *c = server->s_conn_list[idx];
 	int retval;
 
 	fd_set readfd;
@@ -146,18 +146,18 @@ int server_recv(tdata_t *data)
 	while(1)
 	{
 		FD_ZERO(&readfd);
-		FD_SET(c->fd, &readfd);
+		FD_SET(c->c_fd, &readfd);
 
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
 
-		select(c->fd+1, &readfd, NULL, NULL, &tv);
-		if(!FD_ISSET(c->fd, &readfd)) continue;
+		select(c->c_fd + 1, &readfd, NULL, NULL, &tv);
+		if(!FD_ISSET(c->c_fd, &readfd)) continue;
 
-		retval = recv(c->fd, buffer, BUFFERLEN, 0);
+		retval = recv(c->c_fd, buffer, BUFFERLEN, 0);
 		if(errck() == -1 || retval == 0) break;
 
-		snprintf(buffer2, BUFFERLEN, "%s: ", c->ip);
+		snprintf(buffer2, BUFFERLEN, "%s: ", c->c_ip);
 		strcat(buffer2, buffer);
 
 		printf("%s", buffer2);
@@ -170,7 +170,7 @@ int server_recv(tdata_t *data)
 		memset(buffer2, 0, BUFFERLEN);
 	}
 
-	server_conns_close(&server->conns[idx], idx);
+	server_conns_close(&server->s_conn_list[idx], idx);
 	pthread_exit(0);
 	return 0;
 }
@@ -180,9 +180,9 @@ int server_send(sock_t *server, int idx, char *buffer)
 	pthread_mutex_lock(&fd_mtx);
 	for(size_t i=0; i<CONNLIMIT; ++i)
 	{
-		if(server->conns[i] != NULL)
+		if(server->s_conn_list[i] != NULL)
 		{
-			send(server->conns[i]->fd, buffer, strlen(buffer), 0);
+			send(server->s_conn_list[i]->c_fd, buffer, strlen(buffer), 0);
 			if(errck() == -1)
 			{
 				pthread_mutex_unlock(&fd_mtx);

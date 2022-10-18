@@ -29,25 +29,25 @@ int sock_init(sock_t *sock, char* ip, char *port)
 	pthread_mutex_lock(&sock_mtx);
 
 	/* Create socket */
-	sock->fd = socket(AF_INET, SOCK_STREAM, 0);
+	sock->s_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if(errck() == -1)
 	{
 		/* Unock scoket mutex */
 		pthread_mutex_unlock(&sock_mtx);
 		return -1;
 	}
-	/* Setup host data */
-	sock->host.sin_family = AF_INET;
-	sock->host.sin_port = htons(strtol(port, NULL, 10));
-	sock->host.sin_addr.s_addr = (ip == NULL) ? INADDR_ANY : inet_addr(ip);
+	/* Setup s_host data */
+	sock->s_host.sin_family = AF_INET;
+	sock->s_host.sin_port = htons(strtol(port, NULL, 10));
+	sock->s_host.sin_addr.s_addr = (ip == NULL) ? INADDR_ANY : inet_addr(ip);
 	if(errck() == -1)
 	{
 		/* Unock scoket mutex */
 		pthread_mutex_unlock(&sock_mtx);
 		return -1;
 	}
-	/* Set conns only for server */
-	sock->conns = (ip == NULL) ? (conn_t **)calloc(CONNLIMIT, sizeof(conn_t)) : NULL;
+	/* Set s_conn_list only for server */
+	sock->s_conn_list = (ip == NULL) ? (conn_t **)calloc(CONNLIMIT, sizeof(conn_t)) : NULL;
 	if(errck() == -1)
 	{
 		/* Unock scoket mutex */
@@ -55,7 +55,7 @@ int sock_init(sock_t *sock, char* ip, char *port)
 		return -1;
 	}
 	/* Print created socket */
-	printf("Socked %d created!\n", sock->fd);
+	printf("Socked %d created!\n", sock->s_fd);
 	fflush(stdout);
 
 	/* Unock scoket mutex */
@@ -68,31 +68,31 @@ int sock_close(sock_t *sock)
 	/* Lock scoket mutex */
 	pthread_mutex_lock(&sock_mtx);
 
-	int fd = sock->fd;
-	/* Close scoket fd */
-	close(sock->fd);
+	int fd = sock->s_fd;
+	/* Close scoket s_fd */
+	close(sock->s_fd);
 	if(errck() == -1)
 	{
 		/* Unock scoket mutex */
 		pthread_mutex_unlock(&sock_mtx);
 		return -1;
 	}
-	sock->fd = 0;
+	sock->s_fd = 0;
 	/* Clear sockaddr_in struct */
-	memset(&sock->host, 0, sizeof(struct sockaddr_in));
+	memset(&sock->s_host, 0, sizeof(struct sockaddr_in));
 	/* Close all connection (only server) */
-	if(sock->conns != NULL)
+	if(sock->s_conn_list != NULL)
 	{
 		for(size_t i=0; i<CONNLIMIT; ++i)
 		{
-			if(sock->conns[i] != NULL && server_conns_close(sock, i) == -1)
+			if(sock->s_conn_list[i] != NULL && server_conns_close(&sock->s_conn_list[i], i) == -1)
 			{
 				/* Unock scoket mutex */
 				pthread_mutex_unlock(&sock_mtx);
 				return -1;
 			}
 		}
-		free(sock->conns);
+		free(sock->s_conn_list);
 	}
 	/* Print closed */
 	printf("Socked %d closed!\n", fd);

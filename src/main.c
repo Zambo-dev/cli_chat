@@ -7,7 +7,7 @@ int main(int argc, char* argv[])
 {
 	if(argc < 2)
 	{
-		puts("Missing parameters: <s/c> <ip> <port>");
+		puts("Missing parameters: <s/c> <c_ip> <port>");
 		return EXIT_FAILURE;
 	} 
 
@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		puts("Wrong paramenter! <s/c> <ip> <port>");
+		puts("Wrong paramenter! <s/c> <c_ip> <port>");
 		return EXIT_FAILURE;
 	}
 

@@ -7,8 +7,8 @@ int client_connect(sock_t *client)
 	pthread_mutex_lock(&sock_mtx);
 
 	/* Connect to the server */
-	socklen_t len = sizeof(client->host);
-	connect(client->fd, (struct sockaddr *)&client->host, len);
+	socklen_t len = sizeof(client->s_host);
+	connect(client->s_fd, (struct sockaddr *)&client->s_host, len);
 	if(errck() == -1)
 	{
 		/* Unlock socket mutex */
@@ -16,7 +16,7 @@ int client_connect(sock_t *client)
 		return -1;
 	}
 	/* Print connection message */
-	printf("Connected to %s!\n", inet_ntoa(client->host.sin_addr));
+	printf("Connected to %s!\n", inet_ntoa(client->s_host.sin_addr));
 	fflush(stdout);
 
 	/* Unlock socket mutex */
@@ -36,15 +36,15 @@ int client_recv(sock_t *client)
 	while(running)
 	{
 		FD_ZERO(&readfd);
-		FD_SET(client->fd, &readfd);
+		FD_SET(client->s_fd, &readfd);
 
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
 
-		select(client->fd+1, &readfd, NULL, NULL, &tv);
-		if(!FD_ISSET(client->fd, &readfd)) continue;
+		select(client->s_fd + 1, &readfd, NULL, NULL, &tv);
+		if(!FD_ISSET(client->s_fd, &readfd)) continue;
 	
-		retval = recv(client->fd, buffer, BUFFERLEN, 0);
+		retval = recv(client->s_fd, buffer, BUFFERLEN, 0);
 		if(errck() == -1 || retval == 0) 
 		{	
 			/* Lock running mutex */
@@ -112,7 +112,7 @@ int client_send(sock_t *client)
 			return -1;
 		}
 
-		send(client->fd, buffer, BUFFERLEN, 0);
+		send(client->s_fd, buffer, BUFFERLEN, 0);
 		if(errck() == -1)
 		{
 			/* Lock running mutex */

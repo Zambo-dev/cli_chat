@@ -29,15 +29,16 @@ extern int cli_row;
 
 typedef struct CONN_T
 {
-	int fd;
-	char ip[32];
+	int c_fd;
+	char c_ip[32];
 } conn_t;
 
 typedef struct SOCK_T
 {
-	int fd;
-	conn_t **conns;
-	struct sockaddr_in host;
+	int s_fd;
+    conn_t s_conn;
+	conn_t **s_conn_list;
+	struct sockaddr_in s_host;
 } sock_t;
 
 typedef struct THREAD_DATA
