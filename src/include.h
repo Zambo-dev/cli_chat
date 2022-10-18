@@ -59,7 +59,7 @@ int client_send(sock_t *client);
 
 /* Server functions */
 int server_conns_init(conn_t **conn, int fd, char *ip);
-int server_conns_close(sock_t *server, int idx);
+int server_conns_close(conn_t **conn, int idx);
 int server_conns_getfree(conn_t **conns);
 int server_connect(sock_t *server);
 int server_recv(tdata_t *data);

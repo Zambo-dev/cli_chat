@@ -47,9 +47,30 @@ int main(int argc, char* argv[])
 		pthread_create(&server_thd, NULL, (void *)server_connect, (void *)&server);
 
 		char command[32] = {0};
+		fd_set readfd;
+		struct timeval tv;
+
 		do
 		{
+			FD_ZERO(&readfd);
+			FD_SET(STDIN_FILENO, &readfd);
+
+			tv.tv_sec = 1;
+			tv.tv_usec = 0;
+
+			select(STDIN_FILENO+1, &readfd, NULL, NULL, &tv);
+			if(!FD_ISSET(STDIN_FILENO, &readfd)) continue;
+
 			read(STDIN_FILENO, command, 32);
+			if(errck() == -1)
+			{
+				/* Lock running mutex */
+				pthread_mutex_lock(&run_mtx);
+				running = 0;
+				/* Unock running mutex */
+				pthread_mutex_unlock(&run_mtx);
+				break;
+			}
 		}
 		while(strstr(command, "/quit") == NULL);
 

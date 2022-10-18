@@ -30,8 +30,20 @@ int client_recv(sock_t *client)
 	int retval;
 	int serv_row = 6;
 
+	fd_set readfd;
+	struct timeval tv;
+
 	while(running)
 	{
+		FD_ZERO(&readfd);
+		FD_SET(client->fd, &readfd);
+
+		tv.tv_sec = 1;
+		tv.tv_usec = 0;
+
+		select(client->fd+1, &readfd, NULL, NULL, &tv);
+		if(!FD_ISSET(client->fd, &readfd)) continue;
+	
 		retval = recv(client->fd, buffer, BUFFERLEN, 0);
 		if(errck() == -1 || retval == 0) 
 		{	
@@ -70,13 +82,36 @@ int client_send(sock_t *client)
 {
 	char buffer[BUFFERLEN] = {0};
 
+	fd_set readfd;
+	struct timeval tv;
+
+	printf("\x1b[%d;1HClient: \x1b[0K", cli_row);
+	fflush(stdout);
+
 	while(running)
 	{
-		printf("\x1b[%d;1HClient: \x1b[0K", cli_row);
-		fflush(stdout);
+		FD_ZERO(&readfd);
+		FD_SET(STDIN_FILENO, &readfd);
+
+		tv.tv_sec = 1;
+		tv.tv_usec = 0;
+
+		select(STDIN_FILENO+1, &readfd, NULL, NULL, &tv);
+		if(!FD_ISSET(STDIN_FILENO, &readfd)) continue;
+
 		read(STDIN_FILENO, buffer, BUFFERLEN);
-		fflush(stdin);
-		
+		if(errck() == -1)
+		{
+			/* Lock running mutex */
+			pthread_mutex_lock(&run_mtx);
+			running = 0;
+			/* Unock running mutex */
+			pthread_mutex_unlock(&run_mtx);
+			
+			pthread_exit(0);
+			return -1;
+		}
+
 		send(client->fd, buffer, BUFFERLEN, 0);
 		if(errck() == -1)
 		{
@@ -89,6 +124,9 @@ int client_send(sock_t *client)
 			pthread_exit(0);
 			return -1;
 		}
+
+		printf("\x1b[%d;1HClient: \x1b[0K", cli_row);
+		fflush(stdout);
 
 		if(strncmp(buffer, "/quit\n", 7) == 0)
 		{

@@ -23,20 +23,20 @@ int server_conns_init(conn_t **conn, int fd, char *ip)
 	return 0;
 }
 
-int server_conns_close(sock_t *server, int idx)
+int server_conns_close(conn_t **conn, int idx)
 {
 	pthread_mutex_lock(&fd_mtx);
-	int fd = server->conns[idx]->fd;
+	int fd = (*conn)->fd;
 
-	close(server->conns[idx]->fd);
+	close((*conn)->fd);
 	if(errck() == -1)
 	{
 		pthread_mutex_unlock(&fd_mtx);
 		return -1;
 	}
-	free(server->conns[idx]);
-	server->conns[idx] = NULL;
-
+	free(*conn);
+	
+	*conn = NULL;
 	pool[idx] = 0;
 
 	printf("Connection %d closed!\n", fd);
@@ -90,10 +90,22 @@ int server_connect(sock_t *server)
 	pthread_mutex_unlock(&sock_mtx);
 
 	int idx;
+	fd_set readfd;
+	struct timeval tv;
 
 	while(running)
 	{
 		while((idx = server_conns_getfree(server->conns)) == -1);
+
+		FD_ZERO(&readfd);
+		FD_SET(server->fd, &readfd);
+
+
+		tv.tv_sec = 1;
+		tv.tv_usec = 0;
+
+		select(server->fd+1, &readfd, NULL, NULL, &tv);
+		if(!FD_ISSET(server->fd, &readfd)) continue;
 
 		int fd_tmp = accept(server->fd, (struct sockaddr *)&server->host, &len);
 		if(errck() == -1) continue;
@@ -105,7 +117,7 @@ int server_connect(sock_t *server)
 		
 		if(server_conns_init(&server->conns[idx], fd_tmp, inet_ntoa(client.sin_addr)) == -1)
 		{
-			server_conns_close(&server, idx);
+			server_conns_close(&server->conns[idx], idx);
 			continue;
 		}
 		printf("Connected to %d -> %s\n", fd_tmp, server->conns[idx]->ip);
@@ -128,26 +140,37 @@ int server_recv(tdata_t *data)
 	conn_t *c = server->conns[idx];
 	int retval;
 
+	fd_set readfd;
+	struct timeval tv;
+
 	while(1)
 	{
-		snprintf(buffer2, BUFFERLEN, "%s: ", c->ip);
+		FD_ZERO(&readfd);
+		FD_SET(c->fd, &readfd);
+
+		tv.tv_sec = 1;
+		tv.tv_usec = 0;
+
+		select(c->fd+1, &readfd, NULL, NULL, &tv);
+		if(!FD_ISSET(c->fd, &readfd)) continue;
+
 		retval = recv(c->fd, buffer, BUFFERLEN, 0);
 		if(errck() == -1 || retval == 0) break;
 
+		snprintf(buffer2, BUFFERLEN, "%s: ", c->ip);
 		strcat(buffer2, buffer);
 
 		printf("%s", buffer2);
 		fflush(stdout);
 
 		if(strncmp(buffer, "/quit\n", 7) == 0) break;
-		
 		if(server_send(server, idx, buffer2) == -1) break;
 
 		memset(buffer, 0, BUFFERLEN);
 		memset(buffer2, 0, BUFFERLEN);
 	}
 
-	server_conns_close(server, idx);
+	server_conns_close(&server->conns[idx], idx);
 	pthread_exit(0);
 	return 0;
 }
