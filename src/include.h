@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <netdb.h>
 #include <sys/types.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -35,7 +36,6 @@ typedef struct CONN_T
 
 typedef struct SOCK_T
 {
-	int s_fd;
     conn_t s_conn;
 	conn_t **s_conn_list;
 	struct sockaddr_in s_host;

@@ -69,7 +69,7 @@ int server_connect(sock_t *server)
 
 	/* Bind the socket */
 	socklen_t len = sizeof(server->s_host);
-	bind(server->s_fd, (struct sockaddr *)&server->s_host, len);
+	bind(server->s_conn.c_fd, (struct sockaddr *)&server->s_host, len);
 	if(errck() == -1)
 	{
 		pthread_mutex_unlock(&sock_mtx);
@@ -78,7 +78,7 @@ int server_connect(sock_t *server)
 	puts("Socket binded!");
 	fflush(stdout);
 
-	listen(server->s_fd, CONNLIMIT);
+	listen(server->s_conn.c_fd, CONNLIMIT);
 	if(errck() == -1)
 	{
 		pthread_mutex_unlock(&sock_mtx);
@@ -98,21 +98,19 @@ int server_connect(sock_t *server)
 		while((idx = server_conns_getfree(server->s_conn_list)) == -1);
 
 		FD_ZERO(&readfd);
-		FD_SET(server->s_fd, &readfd);
-
+		FD_SET(server->s_conn.c_fd, &readfd);
 
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
 
-		select(server->s_fd + 1, &readfd, NULL, NULL, &tv);
-		if(!FD_ISSET(server->s_fd, &readfd)) continue;
+		select(server->s_conn.c_fd + 1, &readfd, NULL, NULL, &tv);
+		if(!FD_ISSET(server->s_conn.c_fd, &readfd)) continue;
 
-		int fd_tmp = accept(server->s_fd, (struct sockaddr *)&server->s_host, &len);
+		int fd_tmp = accept(server->s_conn.c_fd, (struct sockaddr *)&server->s_host, &len);
 		if(errck() == -1) continue;
 
 		struct sockaddr_in client;
 		socklen_t client_len = sizeof(server->s_host);
-
 		getpeername(fd_tmp, (struct sockaddr *)&client, &client_len);
 		
 		if(server_conns_init(&server->s_conn_list[idx], fd_tmp, inet_ntoa(client.sin_addr)) == -1)

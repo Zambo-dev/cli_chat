@@ -8,7 +8,7 @@ int client_connect(sock_t *client)
 
 	/* Connect to the server */
 	socklen_t len = sizeof(client->s_host);
-	connect(client->s_fd, (struct sockaddr *)&client->s_host, len);
+	connect(client->s_conn.c_fd, (struct sockaddr *)&client->s_host, len);
 	if(errck() == -1)
 	{
 		/* Unlock socket mutex */
@@ -36,15 +36,15 @@ int client_recv(sock_t *client)
 	while(running)
 	{
 		FD_ZERO(&readfd);
-		FD_SET(client->s_fd, &readfd);
+		FD_SET(client->s_conn.c_fd, &readfd);
 
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
 
-		select(client->s_fd + 1, &readfd, NULL, NULL, &tv);
-		if(!FD_ISSET(client->s_fd, &readfd)) continue;
+		select(client->s_conn.c_fd + 1, &readfd, NULL, NULL, &tv);
+		if(!FD_ISSET(client->s_conn.c_fd, &readfd)) continue;
 	
-		retval = recv(client->s_fd, buffer, BUFFERLEN, 0);
+		retval = recv(client->s_conn.c_fd, buffer, BUFFERLEN, 0);
 		if(errck() == -1 || retval == 0) 
 		{	
 			/* Lock running mutex */
@@ -112,7 +112,7 @@ int client_send(sock_t *client)
 			return -1;
 		}
 
-		send(client->s_fd, buffer, BUFFERLEN, 0);
+		send(client->s_conn.c_fd, buffer, BUFFERLEN, 0);
 		if(errck() == -1)
 		{
 			/* Lock running mutex */
