@@ -1,5 +1,5 @@
 # Compiler settings
-CC = clang
+CC = cc
 CCFLAGS := -Wall -ggdb -lssl -lcrypto -lpthread
 
 # Folders
