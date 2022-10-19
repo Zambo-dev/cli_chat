@@ -8,13 +8,48 @@ int client_connect(sock_t *client)
 
 	/* Connect to the server */
 	socklen_t len = sizeof(client->s_host);
-	connect(client->s_conn.c_fd, (struct sockaddr *)&client->s_host, len);
-	if(errck() == -1)
+	if(connect(client->s_conn.c_fd, (struct sockaddr *)&client->s_host, len) == -1)
 	{
+		errck("connect");
 		/* Unlock socket mutex */
 		pthread_mutex_unlock(&sock_mtx);
 		return -1;
 	}
+
+    /* Init SSL context */
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+    if((client->s_conn.c_sslctx = SSL_CTX_new(TLS_client_method())) == NULL)
+    {
+		errck("SSL_CTX_new");
+        /* Unlock socket mutex */
+        pthread_mutex_unlock(&sock_mtx);
+        return -1;
+    }
+
+    /* Init SSL  */
+    if((client->s_conn.c_ssl = SSL_new(client->s_conn.c_sslctx)) == NULL)
+    {
+		errck("SSL_new");
+        /* Unlock socket mutex */
+        pthread_mutex_unlock(&sock_mtx);
+        return -1;
+    }
+    if(SSL_set_fd(client->s_conn.c_ssl, client->s_conn.c_fd) == 0)
+    {
+		errck("SSL_set_fd");
+        /* Unlock socket mutex */
+        pthread_mutex_unlock(&sock_mtx);
+        return -1;
+    }
+    if(SSL_connect(client->s_conn.c_ssl) <= 0)
+    {
+		errck("SSL_connect");
+        /* Unlock socket mutex */
+        pthread_mutex_unlock(&sock_mtx);
+        return -1;
+    }
+
 	/* Print connection message */
 	printf("Connected to %s!\n", inet_ntoa(client->s_host.sin_addr));
 	fflush(stdout);
@@ -44,9 +79,9 @@ int client_recv(sock_t *client)
 		select(client->s_conn.c_fd + 1, &readfd, NULL, NULL, &tv);
 		if(!FD_ISSET(client->s_conn.c_fd, &readfd)) continue;
 	
-		retval = recv(client->s_conn.c_fd, buffer, BUFFERLEN, 0);
-		if(errck() == -1 || retval == 0) 
-		{	
+		if(SSL_read(client->s_conn.c_ssl, buffer, BUFFERLEN) <= 0)
+		{
+			errck("SSL_read");
 			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
 			running = 0;
@@ -57,7 +92,6 @@ int client_recv(sock_t *client)
 			fflush(stdout);
 
 			pthread_exit(0);
-			return -1;
 		}
 
 		if(serv_row == cli_row-1)
@@ -75,7 +109,6 @@ int client_recv(sock_t *client)
 	}
 	
 	pthread_exit(0);
-	return 0;
 }
 
 int client_send(sock_t *client)
@@ -99,9 +132,9 @@ int client_send(sock_t *client)
 		select(STDIN_FILENO+1, &readfd, NULL, NULL, &tv);
 		if(!FD_ISSET(STDIN_FILENO, &readfd)) continue;
 
-		read(STDIN_FILENO, buffer, BUFFERLEN);
-		if(errck() == -1)
+		if(read(STDIN_FILENO, buffer, BUFFERLEN) == -1)
 		{
+			errck("read");
 			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
 			running = 0;
@@ -109,12 +142,11 @@ int client_send(sock_t *client)
 			pthread_mutex_unlock(&run_mtx);
 			
 			pthread_exit(0);
-			return -1;
 		}
 
-		send(client->s_conn.c_fd, buffer, BUFFERLEN, 0);
-		if(errck() == -1)
+		if(SSL_write(client->s_conn.c_ssl, buffer, BUFFERLEN) <= 0)
 		{
+			errck("SSL_write");
 			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
 			running = 0;
@@ -122,7 +154,6 @@ int client_send(sock_t *client)
 			pthread_mutex_unlock(&run_mtx);
 			
 			pthread_exit(0);
-			return -1;
 		}
 
 		printf("\x1b[%d;1HClient: \x1b[0K", cli_row);
@@ -143,5 +174,4 @@ int client_send(sock_t *client)
 	}
 
 	pthread_exit(0);
-	return 0;
 }

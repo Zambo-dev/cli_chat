@@ -1,7 +1,7 @@
 #include "include.h"
 
 
-int errck()
+void errck(char *func_name)
 {
 	/* Lock errno mutex */
 	pthread_mutex_lock(&errno_mtx);
@@ -9,18 +9,17 @@ int errck()
 	if(errno != 0)
 	{	
 		/* Print errno's value and string */
-		printf("ERROR %d: %s\n", errno, strerror(errno));
-		fflush(stdout);
+		printf("%s -> ERROR %d: %s\n", func_name, errno, strerror(errno));
 		/* Reset errno */
 		errno = 0;
-		/* Unlock errno mutex */
-		pthread_mutex_unlock(&errno_mtx);
-		return -1;
 	}
+	else
+		printf("%s -> errno is clean!", func_name);
+
+	fflush(stdout);
 
 	/* Unlock errno mutex */
 	pthread_mutex_unlock(&errno_mtx);
-	return 0;
 }
 
 int sock_init(sock_t *sock, char* ip, char *port)
@@ -29,9 +28,9 @@ int sock_init(sock_t *sock, char* ip, char *port)
 	pthread_mutex_lock(&sock_mtx);
 
 	/* Init socket */
-	sock->s_conn.c_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if(errck() == -1)
+	if((sock->s_conn.c_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
     {
+		errck("socket");
         /* Unlock scoket mutex */
         pthread_mutex_unlock(&sock_mtx);
         return -1;
@@ -41,28 +40,11 @@ int sock_init(sock_t *sock, char* ip, char *port)
 	/* Setup s_host data */
 	sock->s_host.sin_family = AF_INET;
 	sock->s_host.sin_port = htons(strtol(port, NULL, 10));
-    if(errck() == -1)
-    {
-        /* Unlock scoket mutex */
-        pthread_mutex_unlock(&sock_mtx);
-        return -1;
-    }
 	sock->s_host.sin_addr.s_addr = (ip == NULL) ? INADDR_ANY : inet_addr(ip);
-	if(errck() == -1)
-	{
-		/* Unlock scoket mutex */
-		pthread_mutex_unlock(&sock_mtx);
-		return -1;
-	}
 
 	/* Set s_conn_list only for server */
 	sock->s_conn_list = (ip == NULL) ? (conn_t **)calloc(CONNLIMIT, sizeof(conn_t)) : NULL;
-	if(errck() == -1)
-	{
-		/* Unlock scoket mutex */
-		pthread_mutex_unlock(&sock_mtx);
-		return -1;
-	}
+
 	/* Print created socket */
 	printf("Socked created! Id: %d Ip: %s\n", sock->s_conn.c_fd, sock->s_conn.c_ip);
 	fflush(stdout);
@@ -78,10 +60,11 @@ int sock_close(sock_t *sock)
 	pthread_mutex_lock(&sock_mtx);
 
 	int fd = sock->s_conn.c_fd;
+
 	/* Close scoket s_fd */
-	close(sock->s_conn.c_fd);
-	if(errck() == -1)
+	if(close(sock->s_conn.c_fd) == -1)
 	{
+		errck("close");
 		/* Unlock scoket mutex */
 		pthread_mutex_unlock(&sock_mtx);
 		return -1;

@@ -1,45 +1,48 @@
 #include "include.h"
 
 
-int server_conns_init(conn_t **conn, int fd, char *ip)
+int server_conns_init(conn_t **conn, SSL_CTX *server_ctx, int fd, char *ip)
 {
 	pthread_mutex_lock(&fd_mtx);
 
 	*conn = (conn_t *)calloc(1, sizeof(conn_t));
-	if(errck() == -1)
-	{
-		pthread_mutex_unlock(&fd_mtx);
-		return -1;
-	}
 	(*conn)->c_fd = fd;
 	strcpy((*conn)->c_ip, ip);
-	if(errck() == -1)
-	{
-		pthread_mutex_unlock(&fd_mtx);
-		return -1;
-	}
 
-	pthread_mutex_unlock(&fd_mtx);
+    /* Init SSL  */
+    (*conn)->c_ssl = SSL_new(server_ctx);
+    SSL_set_fd((*conn)->c_ssl, (*conn)->c_fd);
+    if(SSL_accept((*conn)->c_ssl) == -1)
+    {
+		errck("SSL_accept");
+        /* Unlock socket mutex */
+        pthread_mutex_unlock(&fd_mtx);
+        return -1;
+    }
+
+    pthread_mutex_unlock(&fd_mtx);
 	return 0;
 }
 
 int server_conns_close(conn_t **conn, int idx)
 {
 	pthread_mutex_lock(&fd_mtx);
-	int fd = (*conn)->c_fd;
 
-	close((*conn)->c_fd);
-	if(errck() == -1)
+    int fd = (*conn)->c_fd;
+    SSL_free((*conn)->c_ssl);
+    if(close((*conn)->c_fd) == -1)
 	{
-		pthread_mutex_unlock(&fd_mtx);
+		errck("close");
+		/* Unlock scoket mutex */
+		pthread_mutex_unlock(&sock_mtx);
 		return -1;
 	}
-	free(*conn);
-	
-	*conn = NULL;
-	pool[idx] = 0;
 
-	printf("Connection %d closed!\n", fd);
+    free(*conn);
+    *conn = NULL;
+    pool[idx] = 0;
+
+    printf("Connection %d closed!\n", fd);
 	fflush(stdout);
 
 	pthread_mutex_unlock(&fd_mtx);
@@ -69,20 +72,20 @@ int server_connect(sock_t *server)
 
 	/* Bind the socket */
 	socklen_t len = sizeof(server->s_host);
-	bind(server->s_conn.c_fd, (struct sockaddr *)&server->s_host, len);
-	if(errck() == -1)
+	if(bind(server->s_conn.c_fd, (struct sockaddr *)&server->s_host, len) == -1)
 	{
+		errck("bind");
 		pthread_mutex_unlock(&sock_mtx);
-		return -1;
+        pthread_exit(0);
 	}
 	puts("Socket binded!");
 	fflush(stdout);
 
-	listen(server->s_conn.c_fd, CONNLIMIT);
-	if(errck() == -1)
+	if(listen(server->s_conn.c_fd, CONNLIMIT) == -1)
 	{
+		errck("listen");
 		pthread_mutex_unlock(&sock_mtx);
-		return -1;
+        pthread_exit(0);
 	}
 	puts("Listening...");
 	fflush(stdout);
@@ -92,6 +95,7 @@ int server_connect(sock_t *server)
 	int idx;
 	fd_set readfd;
 	struct timeval tv;
+	int fd_tmp;
 
 	while(running)
 	{
@@ -102,19 +106,23 @@ int server_connect(sock_t *server)
 
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
-
-		select(server->s_conn.c_fd + 1, &readfd, NULL, NULL, &tv);
+		
+		select(server->s_conn.c_fd+1, &readfd, NULL, NULL, &tv);
 		if(!FD_ISSET(server->s_conn.c_fd, &readfd)) continue;
 
-		int fd_tmp = accept(server->s_conn.c_fd, (struct sockaddr *)&server->s_host, &len);
-		if(errck() == -1) continue;
+		if((fd_tmp = accept(server->s_conn.c_fd, (struct sockaddr *)&server->s_host, &len)) == -1)
+		{
+			errck("accept");
+			continue;
+		}
 
 		struct sockaddr_in client;
 		socklen_t client_len = sizeof(server->s_host);
 		getpeername(fd_tmp, (struct sockaddr *)&client, &client_len);
 		
-		if(server_conns_init(&server->s_conn_list[idx], fd_tmp, inet_ntoa(client.sin_addr)) == -1)
+		if(server_conns_init(&server->s_conn_list[idx], server->s_conn.c_sslctx, fd_tmp, inet_ntoa(client.sin_addr)) == -1)
 		{
+			errck("server_conns_init");
 			server_conns_close(&server->s_conn_list[idx], idx);
 			continue;
 		}
@@ -125,7 +133,7 @@ int server_connect(sock_t *server)
 		pthread_create(&pool[idx], NULL, (void *)server_recv, (void *)&tmp);
 	}
 
-	return 0;
+    pthread_exit(0);
 }
 
 int server_recv(tdata_t *data)
@@ -152,8 +160,12 @@ int server_recv(tdata_t *data)
 		select(c->c_fd + 1, &readfd, NULL, NULL, &tv);
 		if(!FD_ISSET(c->c_fd, &readfd)) continue;
 
-		retval = recv(c->c_fd, buffer, BUFFERLEN, 0);
-		if(errck() == -1 || retval == 0) break;
+		if(SSL_read(c->c_ssl, buffer, BUFFERLEN) <= 0)
+		{
+			errck("SSL_read");
+			pthread_mutex_unlock(&fd_mtx);
+			return -1;
+		}
 
 		snprintf(buffer2, BUFFERLEN, "%s: ", c->c_ip);
 		strcat(buffer2, buffer);
@@ -161,8 +173,8 @@ int server_recv(tdata_t *data)
 		printf("%s", buffer2);
 		fflush(stdout);
 
-		if(strncmp(buffer, "/quit\n", 7) == 0) break;
-		if(server_send(server, idx, buffer2) == -1) break;
+		if(strncmp(buffer, "/quit\n", 6) == 0) break;
+		if(server_send(server, buffer2) == -1) break;
 
 		memset(buffer, 0, BUFFERLEN);
 		memset(buffer2, 0, BUFFERLEN);
@@ -170,19 +182,18 @@ int server_recv(tdata_t *data)
 
 	server_conns_close(&server->s_conn_list[idx], idx);
 	pthread_exit(0);
-	return 0;
 }
 
-int server_send(sock_t *server, int idx, char *buffer)
+int server_send(sock_t *server, char *buffer)
 {
 	pthread_mutex_lock(&fd_mtx);
 	for(size_t i=0; i<CONNLIMIT; ++i)
 	{
 		if(server->s_conn_list[i] != NULL)
 		{
-			send(server->s_conn_list[i]->c_fd, buffer, strlen(buffer), 0);
-			if(errck() == -1)
+			if(SSL_write(server->s_conn_list[i]->c_ssl, buffer, strlen(buffer)) <= 0)
 			{
+				errck("SSL_write");
 				pthread_mutex_unlock(&fd_mtx);
 				return -1;
 			}

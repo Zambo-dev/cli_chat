@@ -33,18 +33,41 @@ int main(int argc, char* argv[])
 		while(running);
 		
 		while(pthread_join(send_thd, 0) != 0);
-		puts("Closed sending thread!");
+		puts("\nClosed sending thread!");
 		while(pthread_join(recv_thd, 0) != 0);
 		puts("Closed receiving thread!");
 
 		if(sock_close(&client) == -1) return EXIT_FAILURE;
+
+        close(client.s_conn.c_fd);
+        SSL_free(client.s_conn.c_ssl);
+        SSL_CTX_free(client.s_conn.c_sslctx);
 	}
 	else if(argv[1][0] == 's')	/* Server code */
 	{
 		sock_t server;
 		if(sock_init(&server, NULL, argv[2]) == -1) return EXIT_FAILURE;
+
+        /* Init SSL context */
+        OpenSSL_add_all_algorithms();
+        SSL_load_error_strings();
+        if((server.s_conn.c_sslctx = SSL_CTX_new(SSLv23_server_method())) == NULL)
+            return EXIT_FAILURE;
+        /* set the local certificate from CertFile */
+        if(SSL_CTX_use_certificate_file(server.s_conn.c_sslctx, argv[3], SSL_FILETYPE_PEM) <= 0)
+            return EXIT_FAILURE;
+        /* set the private key from KeyFile (may be the same as CertFile) */
+        if(SSL_CTX_use_PrivateKey_file(server.s_conn.c_sslctx, argv[4], SSL_FILETYPE_PEM) <= 0)
+            return EXIT_FAILURE;
+        /* verify private key */
+        if(!SSL_CTX_check_private_key(server.s_conn.c_sslctx))
+            return EXIT_FAILURE;
+
+        printf("Running: %d\n", running);
+        fflush(stdout);
 		pthread_t server_thd;
-		pthread_create(&server_thd, NULL, (void *)server_connect, (void *)&server);
+        if(running)
+		    pthread_create(&server_thd, NULL, (void *)server_connect, (void *)&server);
 
 		char command[32] = {0};
 		fd_set readfd;
@@ -60,22 +83,22 @@ int main(int argc, char* argv[])
 
 			select(STDIN_FILENO+1, &readfd, NULL, NULL, &tv);
 			if(!FD_ISSET(STDIN_FILENO, &readfd)) continue;
-
-			read(STDIN_FILENO, command, 32);
-			if(errck() == -1)
+			
+			if(read(STDIN_FILENO, command, 32) == -1)
 			{
-				/* Lock running mutex */
-				pthread_mutex_lock(&run_mtx);
-				running = 0;
-				/* Unock running mutex */
-				pthread_mutex_unlock(&run_mtx);
+				puts("OK here");
+				fflush(stdout);
 				break;
 			}
 		}
 		while(strstr(command, "/quit") == NULL);
 
+        pthread_mutex_lock(&run_mtx);
 		running = 0;
+        pthread_mutex_unlock(&run_mtx);
 
+        SSL_free(server.s_conn.c_ssl);
+        SSL_CTX_free(server.s_conn.c_sslctx);
 		if(sock_close(&server) == -1) return EXIT_FAILURE;
 		
 		for(int i=0; i<CONNLIMIT; ++i)
@@ -86,7 +109,6 @@ int main(int argc, char* argv[])
 		puts("Wrong paramenter! <s/c> <c_ip> <port>");
 		return EXIT_FAILURE;
 	}
-
 
 	return EXIT_SUCCESS;
 }

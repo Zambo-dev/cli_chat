@@ -1,6 +1,6 @@
 # Compiler settings
 CC = clang
-CCFLAGS := -ggdb -lpthread
+CCFLAGS := -Wall -ggdb -lssl -lcrypto -lpthread
 
 # Folders
 SRC = src
@@ -39,7 +39,7 @@ ifeq ("$(wildcard $@)", "")
 endif
 
 server: $(CFL) $(EXE)
-	$(EXE) s 4444
+	sudo $(EXE) s 4444 /cert.pem /key.pem
 client: $(CFL) $(EXE)
 	$(EXE) c 127.0.0.1 4444
 
