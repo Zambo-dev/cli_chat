@@ -8,7 +8,7 @@ Command line group messagging client/server build with [OpenSSL](https://github.
 make
 
 # Run as server
-./bin/clichat s <PORT>
+./bin/clichat s <PORT> <cert.pem> <key.pem>
 # Run as client
 ./bin/clichat c <IPv4> <PORT>
 
