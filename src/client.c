@@ -10,7 +10,7 @@ int client_connect(sock_t *client)
 	socklen_t len = sizeof(client->s_host);
 	if(connect(client->s_conn.c_fd, (struct sockaddr *)&client->s_host, len) == -1)
 	{
-		errck("connect");
+		fd_errck("connect");
 		/* Unlock socket mutex */
 		pthread_mutex_unlock(&sock_mtx);
 		return -1;
@@ -21,7 +21,7 @@ int client_connect(sock_t *client)
     SSL_load_error_strings();
     if((client->s_conn.c_sslctx = SSL_CTX_new(TLS_client_method())) == NULL)
     {
-		errck("SSL_CTX_new");
+		fd_errck("SSL_CTX_new");
         /* Unlock socket mutex */
         pthread_mutex_unlock(&sock_mtx);
         return -1;
@@ -30,21 +30,21 @@ int client_connect(sock_t *client)
     /* Init SSL  */
     if((client->s_conn.c_ssl = SSL_new(client->s_conn.c_sslctx)) == NULL)
     {
-		errck("SSL_new");
+		fd_errck("SSL_new");
         /* Unlock socket mutex */
         pthread_mutex_unlock(&sock_mtx);
         return -1;
     }
     if(SSL_set_fd(client->s_conn.c_ssl, client->s_conn.c_fd) == 0)
     {
-		errck("SSL_set_fd");
+		fd_errck("SSL_set_fd");
         /* Unlock socket mutex */
         pthread_mutex_unlock(&sock_mtx);
         return -1;
     }
     if(SSL_connect(client->s_conn.c_ssl) <= 0)
     {
-		errck("SSL_connect");
+		fd_errck("SSL_connect");
         /* Unlock socket mutex */
         pthread_mutex_unlock(&sock_mtx);
         return -1;
@@ -81,7 +81,7 @@ int client_recv(sock_t *client)
 	
 		if(SSL_read(client->s_conn.c_ssl, buffer, BUFFERLEN) <= 0)
 		{
-			errck("SSL_read");
+			fd_errck("SSL_read");
 			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
 			running = 0;
@@ -134,7 +134,7 @@ int client_send(sock_t *client)
 
 		if(read(STDIN_FILENO, buffer, BUFFERLEN) == -1)
 		{
-			errck("read");
+			fd_errck("read");
 			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
 			running = 0;
@@ -146,7 +146,7 @@ int client_send(sock_t *client)
 
 		if(SSL_write(client->s_conn.c_ssl, buffer, BUFFERLEN) <= 0)
 		{
-			errck("SSL_write");
+			fd_errck("SSL_write");
 			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
 			running = 0;

@@ -1,7 +1,7 @@
 #include "include.h"
 
 
-void errck(char *func_name)
+void fd_errck(char *func_name)
 {
 	/* Lock errno mutex */
 	pthread_mutex_lock(&errno_mtx);
@@ -13,13 +13,19 @@ void errck(char *func_name)
 		/* Reset errno */
 		errno = 0;
 	}
-	else
-		printf("%s -> errno is clean!", func_name);
 
 	fflush(stdout);
 
 	/* Unlock errno mutex */
 	pthread_mutex_unlock(&errno_mtx);
+}
+
+void ssl_errck(char *func_name, int retval)
+{
+	char err[BUFFERLEN];
+	snprintf(err, BUFFERLEN, "%s -> %s", func_name, ERR_error_string(retval, NULL));
+	printf("%s\n", err);
+	fflush(stdout);
 }
 
 int sock_init(sock_t *sock, char* ip, char *port)
@@ -30,7 +36,7 @@ int sock_init(sock_t *sock, char* ip, char *port)
 	/* Init socket */
 	if((sock->s_conn.c_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
     {
-		errck("socket");
+		fd_errck("socket");
         /* Unlock scoket mutex */
         pthread_mutex_unlock(&sock_mtx);
         return -1;
@@ -64,7 +70,7 @@ int sock_close(sock_t *sock)
 	/* Close scoket s_fd */
 	if(close(sock->s_conn.c_fd) == -1)
 	{
-		errck("close");
+		fd_errck("close");
 		/* Unlock scoket mutex */
 		pthread_mutex_unlock(&sock_mtx);
 		return -1;

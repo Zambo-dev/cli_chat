@@ -5,6 +5,8 @@ int server_conns_init(conn_t **conn, SSL_CTX *server_ctx, int fd, char *ip)
 {
 	pthread_mutex_lock(&fd_mtx);
 
+	int retval;
+
 	*conn = (conn_t *)calloc(1, sizeof(conn_t));
 	(*conn)->c_fd = fd;
 	strcpy((*conn)->c_ip, ip);
@@ -12,9 +14,10 @@ int server_conns_init(conn_t **conn, SSL_CTX *server_ctx, int fd, char *ip)
     /* Init SSL  */
     (*conn)->c_ssl = SSL_new(server_ctx);
     SSL_set_fd((*conn)->c_ssl, (*conn)->c_fd);
-    if(SSL_accept((*conn)->c_ssl) == -1)
+	SSL *ssl;
+    if((retval = SSL_accept(ssl)) == -1)
     {
-		errck("SSL_accept");
+		ssl_errck("SSL_accept", retval);
         /* Unlock socket mutex */
         pthread_mutex_unlock(&fd_mtx);
         return -1;
@@ -32,7 +35,7 @@ int server_conns_close(conn_t **conn, int idx)
     SSL_free((*conn)->c_ssl);
     if(close((*conn)->c_fd) == -1)
 	{
-		errck("close");
+		fd_errck("close");
 		/* Unlock scoket mutex */
 		pthread_mutex_unlock(&sock_mtx);
 		return -1;
@@ -74,7 +77,7 @@ int server_connect(sock_t *server)
 	socklen_t len = sizeof(server->s_host);
 	if(bind(server->s_conn.c_fd, (struct sockaddr *)&server->s_host, len) == -1)
 	{
-		errck("bind");
+		fd_errck("bind");
 		pthread_mutex_unlock(&sock_mtx);
         pthread_exit(0);
 	}
@@ -83,7 +86,7 @@ int server_connect(sock_t *server)
 
 	if(listen(server->s_conn.c_fd, CONNLIMIT) == -1)
 	{
-		errck("listen");
+		fd_errck("listen");
 		pthread_mutex_unlock(&sock_mtx);
         pthread_exit(0);
 	}
@@ -112,7 +115,7 @@ int server_connect(sock_t *server)
 
 		if((fd_tmp = accept(server->s_conn.c_fd, (struct sockaddr *)&server->s_host, &len)) == -1)
 		{
-			errck("accept");
+			fd_errck("accept");
 			continue;
 		}
 
@@ -122,7 +125,7 @@ int server_connect(sock_t *server)
 		
 		if(server_conns_init(&server->s_conn_list[idx], server->s_conn.c_sslctx, fd_tmp, inet_ntoa(client.sin_addr)) == -1)
 		{
-			errck("server_conns_init");
+			fd_errck("server_conns_init");
 			server_conns_close(&server->s_conn_list[idx], idx);
 			continue;
 		}
@@ -162,7 +165,7 @@ int server_recv(tdata_t *data)
 
 		if(SSL_read(c->c_ssl, buffer, BUFFERLEN) <= 0)
 		{
-			errck("SSL_read");
+			fd_errck("SSL_read");
 			pthread_mutex_unlock(&fd_mtx);
 			return -1;
 		}
@@ -193,7 +196,7 @@ int server_send(sock_t *server, char *buffer)
 		{
 			if(SSL_write(server->s_conn_list[i]->c_ssl, buffer, strlen(buffer)) <= 0)
 			{
-				errck("SSL_write");
+				fd_errck("SSL_write");
 				pthread_mutex_unlock(&fd_mtx);
 				return -1;
 			}

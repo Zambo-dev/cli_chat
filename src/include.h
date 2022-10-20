@@ -57,7 +57,8 @@ typedef struct THREAD_DATA
 
 
 /* General functions */
-void errck(char *func_name);
+void fd_errck(char *func_name);
+void ssl_errck(char *func_name, int retval);
 int sock_init(sock_t *sock, char *ip, char *port);
 int sock_close(sock_t *sock);
 
