@@ -46,22 +46,36 @@ int main(int argc, char* argv[])
 	else if(argv[1][0] == 's')	/* Server code */
 	{
 		sock_t server;
+		int retval;
+
 		if(sock_init(&server, NULL, argv[2]) == -1) return EXIT_FAILURE;
 
         /* Init SSL context */
         OpenSSL_add_all_algorithms();
         SSL_load_error_strings();
         if((server.s_conn.c_sslctx = SSL_CTX_new(SSLv23_server_method())) == NULL)
-            return EXIT_FAILURE;
-        /* set the local certificate from CertFile */
-        if(SSL_CTX_use_certificate_file(server.s_conn.c_sslctx, argv[3], SSL_FILETYPE_PEM) <= 0)
-            return EXIT_FAILURE;
+		{
+			ssl_errck("SSL_CTX_new", server.s_conn.c_sslctx);
+			return EXIT_FAILURE;
+		}
+			/* set the local certificate from CertFile */
+        if((retval = SSL_CTX_use_certificate_file(server.s_conn.c_sslctx, argv[3], SSL_FILETYPE_PEM)) <= 0)
+		{
+			ssl_errck("SSL_CTX_use_certificate_file", retval);
+			return EXIT_FAILURE;
+		}
         /* set the private key from KeyFile (may be the same as CertFile) */
-        if(SSL_CTX_use_PrivateKey_file(server.s_conn.c_sslctx, argv[4], SSL_FILETYPE_PEM) <= 0)
-            return EXIT_FAILURE;
+        if((retval = SSL_CTX_use_PrivateKey_file(server.s_conn.c_sslctx, argv[4], SSL_FILETYPE_PEM)) <= 0)
+		{
+			ssl_errck("SSL_CTX_use_PrivateKey_file", retval);
+			return EXIT_FAILURE;
+		}
         /* verify private key */
-        if(!SSL_CTX_check_private_key(server.s_conn.c_sslctx))
-            return EXIT_FAILURE;
+        if(!(retval = SSL_CTX_check_private_key(server.s_conn.c_sslctx)))
+		{
+			ssl_errck("SSL_CTX_check_private_key", retval);
+			return EXIT_FAILURE;
+		}
 
         printf("Running: %d\n", running);
         fflush(stdout);

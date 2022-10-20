@@ -162,9 +162,9 @@ int server_recv(tdata_t *data)
 		select(c->c_fd + 1, &readfd, NULL, NULL, &tv);
 		if(!FD_ISSET(c->c_fd, &readfd)) continue;
 
-		if(SSL_read(c->c_ssl, buffer, BUFFERLEN) <= 0)
+		if((retval = SSL_read(c->c_ssl, buffer, BUFFERLEN)) <= 0)
 		{
-			fd_errck("SSL_read");
+			ssl_errck("SSL_read", retval);
 			pthread_mutex_unlock(&fd_mtx);
 			return -1;
 		}
@@ -189,13 +189,16 @@ int server_recv(tdata_t *data)
 int server_send(sock_t *server, char *buffer)
 {
 	pthread_mutex_lock(&fd_mtx);
+
+	int retval;
+
 	for(size_t i=0; i<CONNLIMIT; ++i)
 	{
 		if(server->s_conn_list[i] != NULL)
 		{
-			if(SSL_write(server->s_conn_list[i]->c_ssl, buffer, strlen(buffer)) <= 0)
+			if((retval = SSL_write(server->s_conn_list[i]->c_ssl, buffer, strlen(buffer))) <= 0)
 			{
-				fd_errck("SSL_write");
+				ssl_errck("SSL_write", retval);
 				pthread_mutex_unlock(&fd_mtx);
 				return -1;
 			}
