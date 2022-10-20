@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
         SSL_load_error_strings();
         if((server.s_conn.c_sslctx = SSL_CTX_new(SSLv23_server_method())) == NULL)
 		{
-			ssl_errck("SSL_CTX_new", server.s_conn.c_sslctx);
+			ssl_errck("SSL_CTX_new", 0);
 			return EXIT_FAILURE;
 		}
 			/* set the local certificate from CertFile */
