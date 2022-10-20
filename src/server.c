@@ -14,8 +14,7 @@ int server_conns_init(conn_t **conn, SSL_CTX *server_ctx, int fd, char *ip)
     /* Init SSL  */
     (*conn)->c_ssl = SSL_new(server_ctx);
     SSL_set_fd((*conn)->c_ssl, (*conn)->c_fd);
-	SSL *ssl;
-    if((retval = SSL_accept(ssl)) == -1)
+    if((retval = SSL_accept((*conn)->c_ssl)) == -1)
     {
 		ssl_errck("SSL_accept", retval);
         /* Unlock socket mutex */
