@@ -23,7 +23,7 @@ int client_connect(sock_t *client)
     SSL_load_error_strings();
     if((client->s_conn.c_sslctx = SSL_CTX_new(TLS_client_method())) == NULL)
     {
-		ssl_errck("SSL_CTX_new", client->s_conn.c_sslctx);
+		ssl_errck("SSL_CTX_new", 0);
         /* Unlock socket mutex */
         pthread_mutex_unlock(&sock_mtx);
         return -1;
@@ -32,7 +32,7 @@ int client_connect(sock_t *client)
     /* Init SSL  */
     if((client->s_conn.c_ssl = SSL_new(client->s_conn.c_sslctx)) == NULL)
     {
-		ssl_errck("SSL_new", client->s_conn.c_ssl);
+		ssl_errck("SSL_new", 0);
         /* Unlock socket mutex */
         pthread_mutex_unlock(&sock_mtx);
         return -1;
@@ -115,6 +115,7 @@ int client_recv(sock_t *client)
 
 int client_send(sock_t *client)
 {
+	int retval;
 	char buffer[BUFFERLEN] = {0};
 
 	fd_set readfd;
@@ -148,7 +149,7 @@ int client_send(sock_t *client)
 
 		if((retval = SSL_write(client->s_conn.c_ssl, buffer, BUFFERLEN)) <= 0)
 		{
-			ssl_errck"SSL_write", retval);
+			ssl_errck("SSL_write", retval);
 			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
 			running = 0;
