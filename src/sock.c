@@ -116,6 +116,11 @@ int sock_close(sock_t *sock)
 
 	int fd = sock->s_conn.c_fd;
 
+	/* Shutdown SSL */
+	SSL_shutdown(sock->s_conn.c_ssl);
+	SSL_free(sock->s_conn.c_ssl);
+	SSL_CTX_free(sock->s_conn.c_sslctx);
+
 	/* Close scoket s_fd */
 	if(close(sock->s_conn.c_fd) == -1)
 	{

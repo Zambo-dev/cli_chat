@@ -73,9 +73,6 @@ int main(int argc, char* argv[])
 		running = 0;
         pthread_mutex_unlock(&run_mtx);
 
-        SSL_free(server.s_conn.c_ssl);
-        SSL_CTX_free(server.s_conn.c_sslctx);
-
 		if(sock_close(&server) == -1) return EXIT_FAILURE;
 		
 		for(int i=0; i<CONNLIMIT; ++i)
