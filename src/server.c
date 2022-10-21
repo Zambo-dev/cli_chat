@@ -108,7 +108,7 @@ int server_connect(sock_t *server)
 
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
-		
+
 		select(server->s_conn.c_fd+1, &readfd, NULL, NULL, &tv);
 		if(!FD_ISSET(server->s_conn.c_fd, &readfd)) continue;
 

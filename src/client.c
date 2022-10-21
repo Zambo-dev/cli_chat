@@ -126,7 +126,6 @@ int client_send(sock_t *client)
 
 		if(read(STDIN_FILENO, buffer, BUFFERLEN) == -1)
 		{
-			puts("\n\n\n");
 			fd_errck("read");
 			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
@@ -149,7 +148,7 @@ int client_send(sock_t *client)
 			pthread_exit(0);
 		}
 
-		if(strncmp(buffer, "/quit\n", 7) == 0)
+		if(strncmp(buffer, "/quit\n", 6) == 0)
 		{
 			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
@@ -160,7 +159,7 @@ int client_send(sock_t *client)
 			break;	
 		}
 
-		printf("\x1b[%d;1HClient: \x1b[0K", cli_row);
+		printf("\x1b[%d;1HClient: ", cli_row);
 		fflush(stdout);
 
 		memset(buffer, 0, BUFFERLEN);

@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
 		puts("Closed sending thread!\n");
 		while(pthread_join(recv_thd, 0) != 0);
 		puts("Closed receiving thread!\n");
-		
+
 		if(sock_close(&client) == -1) return EXIT_FAILURE;
 	}
 	else if(argv[1][0] == 's')	/* Server code */
@@ -61,14 +61,17 @@ int main(int argc, char* argv[])
 
 			select(STDIN_FILENO+1, &readfd, NULL, NULL, &tv);
 			if(!FD_ISSET(STDIN_FILENO, &readfd)) continue;
-			
+
 			if(read(STDIN_FILENO, command, 32) == -1) break;
 		}
-		while(strstr(command, "/quit") == NULL);
+		while(strncmp(command, "/quit\n", 6) != 0);
 
         pthread_mutex_lock(&run_mtx);
 		running = 0;
         pthread_mutex_unlock(&run_mtx);
+
+		while(pthread_join(server_thd, 0) != 0);
+		puts("Closed connection thread!\n");
 
 		if(sock_close(&server) == -1) return EXIT_FAILURE;
 		

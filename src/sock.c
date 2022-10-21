@@ -115,21 +115,8 @@ int sock_close(sock_t *sock)
 	pthread_mutex_lock(&sock_mtx);
 
 	int fd = sock->s_conn.c_fd;
+	int is_server = (sock->s_conn_list != NULL) ? 1 : 0;
 
-	/* Shutdown SSL */
-	SSL_shutdown(sock->s_conn.c_ssl);
-	SSL_free(sock->s_conn.c_ssl);
-	SSL_CTX_free(sock->s_conn.c_sslctx);
-
-	/* Close scoket s_fd */
-	if(close(sock->s_conn.c_fd) == -1)
-	{
-		fd_errck("close");
-		/* Unlock scoket mutex */
-		pthread_mutex_unlock(&sock_mtx);
-		return -1;
-	}
-	sock->s_conn.c_fd = 0;
 	/* Clear sockaddr_in struct */
 	memset(&sock->s_host, 0, sizeof(struct sockaddr_in));
 	/* Close all connection (only server) */
@@ -145,9 +132,31 @@ int sock_close(sock_t *sock)
 			}
 		}
 		free(sock->s_conn_list);
+		sock->s_conn_list = NULL;
 	}
+	puts("Connections closed!");
+	fflush(stdout);
+
+	/* Shutdown SSL */
+	if(!is_server)
+	{
+		SSL_shutdown(sock->s_conn.c_ssl);
+		SSL_free(sock->s_conn.c_ssl);
+	}
+	SSL_CTX_free(sock->s_conn.c_sslctx);
+
+	/* Close scoket s_fd */
+	if(close(sock->s_conn.c_fd) == -1)
+	{
+		fd_errck("close");
+		/* Unlock scoket mutex */
+		pthread_mutex_unlock(&sock_mtx);
+		return -1;
+	}
+	sock->s_conn.c_fd = 0;
+
 	/* Print closed */
-	//printf("Socked %d closed!\n", fd);
+	printf("Socked %d closed!\n", fd);
 	fflush(stdout);
 
 	/* Unlock scoket mutex */
