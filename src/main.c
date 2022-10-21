@@ -16,76 +16,43 @@ int main(int argc, char* argv[])
 
 	if(argv[1][0] == 'c')	/* Client code */
 	{
+		sock_t client;
+		pthread_t send_thd, recv_thd;
 		struct winsize wsize;
-    	ioctl(STDOUT_FILENO, TIOCGWINSZ, &wsize);
 
+		ioctl(STDOUT_FILENO, TIOCGWINSZ, &wsize);
         cli_row = wsize.ws_row-1; 
 
-		sock_t client;
-		if(sock_init(&client, argv[2], argv[3]) == -1) return EXIT_FAILURE;
+		if(sock_init(&client, argv[2], argv[3], NULL, NULL) == -1) return EXIT_FAILURE;
 		if(client_connect(&client) == -1) return EXIT_FAILURE;
 
-		pthread_t send_thd, recv_thd;
-		
 		pthread_create(&send_thd, NULL, (void *)client_send, (void *)&client);
 		pthread_create(&recv_thd, NULL, (void *)client_recv, (void *)&client);
 
 		while(running);
 		
 		while(pthread_join(send_thd, 0) != 0);
-		puts("\nClosed sending thread!");
+		puts("Closed sending thread!\n");
 		while(pthread_join(recv_thd, 0) != 0);
-		puts("Closed receiving thread!");
+		puts("Closed receiving thread!\n");
+
+		SSL_free(client.s_conn.c_ssl);
+		SSL_CTX_free(client.s_conn.c_sslctx);
 
 		if(sock_close(&client) == -1) return EXIT_FAILURE;
-
-        close(client.s_conn.c_fd);
-        SSL_free(client.s_conn.c_ssl);
-        SSL_CTX_free(client.s_conn.c_sslctx);
 	}
 	else if(argv[1][0] == 's')	/* Server code */
 	{
-		sock_t server;
 		int retval;
-
-		if(sock_init(&server, NULL, argv[2]) == -1) return EXIT_FAILURE;
-
-        /* Init SSL context */
-        OpenSSL_add_all_algorithms();
-        SSL_load_error_strings();
-        if((server.s_conn.c_sslctx = SSL_CTX_new(SSLv23_server_method())) == NULL)
-		{
-			ssl_errck("SSL_CTX_new", 0);
-			return EXIT_FAILURE;
-		}
-			/* set the local certificate from CertFile */
-        if((retval = SSL_CTX_use_certificate_file(server.s_conn.c_sslctx, argv[3], SSL_FILETYPE_PEM)) <= 0)
-		{
-			ssl_errck("SSL_CTX_use_certificate_file", retval);
-			return EXIT_FAILURE;
-		}
-        /* set the private key from KeyFile (may be the same as CertFile) */
-        if((retval = SSL_CTX_use_PrivateKey_file(server.s_conn.c_sslctx, argv[4], SSL_FILETYPE_PEM)) <= 0)
-		{
-			ssl_errck("SSL_CTX_use_PrivateKey_file", retval);
-			return EXIT_FAILURE;
-		}
-        /* verify private key */
-        if(!(retval = SSL_CTX_check_private_key(server.s_conn.c_sslctx)))
-		{
-			ssl_errck("SSL_CTX_check_private_key", retval);
-			return EXIT_FAILURE;
-		}
-
-        printf("Running: %d\n", running);
-        fflush(stdout);
-		pthread_t server_thd;
-        if(running)
-		    pthread_create(&server_thd, NULL, (void *)server_connect, (void *)&server);
-
 		char command[32] = {0};
+		sock_t server;
+		pthread_t server_thd;
 		fd_set readfd;
 		struct timeval tv;
+
+		if(sock_init(&server, NULL, argv[2], argv[3], argv[4]) == -1) return EXIT_FAILURE;
+
+		pthread_create(&server_thd, NULL, (void *)server_connect, (void *)&server);
 
 		do
 		{
@@ -98,12 +65,7 @@ int main(int argc, char* argv[])
 			select(STDIN_FILENO+1, &readfd, NULL, NULL, &tv);
 			if(!FD_ISSET(STDIN_FILENO, &readfd)) continue;
 			
-			if(read(STDIN_FILENO, command, 32) == -1)
-			{
-				puts("OK here");
-				fflush(stdout);
-				break;
-			}
+			if(read(STDIN_FILENO, command, 32) == -1) break;
 		}
 		while(strstr(command, "/quit") == NULL);
 
@@ -113,6 +75,7 @@ int main(int argc, char* argv[])
 
         SSL_free(server.s_conn.c_ssl);
         SSL_CTX_free(server.s_conn.c_sslctx);
+
 		if(sock_close(&server) == -1) return EXIT_FAILURE;
 		
 		for(int i=0; i<CONNLIMIT; ++i)

@@ -18,17 +18,6 @@ int client_connect(sock_t *client)
 		return -1;
 	}
 
-    /* Init SSL context */
-    OpenSSL_add_all_algorithms();
-    SSL_load_error_strings();
-    if((client->s_conn.c_sslctx = SSL_CTX_new(TLS_client_method())) == NULL)
-    {
-		ssl_errck("SSL_CTX_new", 0);
-        /* Unlock socket mutex */
-        pthread_mutex_unlock(&sock_mtx);
-        return -1;
-    }
-
     /* Init SSL  */
     if((client->s_conn.c_ssl = SSL_new(client->s_conn.c_sslctx)) == NULL)
     {
@@ -137,6 +126,7 @@ int client_send(sock_t *client)
 
 		if(read(STDIN_FILENO, buffer, BUFFERLEN) == -1)
 		{
+			puts("\n\n\n");
 			fd_errck("read");
 			/* Lock running mutex */
 			pthread_mutex_lock(&run_mtx);
@@ -159,9 +149,6 @@ int client_send(sock_t *client)
 			pthread_exit(0);
 		}
 
-		printf("\x1b[%d;1HClient: \x1b[0K", cli_row);
-		fflush(stdout);
-
 		if(strncmp(buffer, "/quit\n", 7) == 0)
 		{
 			/* Lock running mutex */
@@ -172,6 +159,9 @@ int client_send(sock_t *client)
 
 			break;	
 		}
+
+		printf("\x1b[%d;1HClient: \x1b[0K", cli_row);
+		fflush(stdout);
 
 		memset(buffer, 0, BUFFERLEN);
 	}
