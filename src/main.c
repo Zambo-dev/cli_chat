@@ -35,10 +35,7 @@ int main(int argc, char* argv[])
 		puts("Closed sending thread!\n");
 		while(pthread_join(recv_thd, 0) != 0);
 		puts("Closed receiving thread!\n");
-
-		SSL_free(client.s_conn.c_ssl);
-		SSL_CTX_free(client.s_conn.c_sslctx);
-
+		
 		if(sock_close(&client) == -1) return EXIT_FAILURE;
 	}
 	else if(argv[1][0] == 's')	/* Server code */
