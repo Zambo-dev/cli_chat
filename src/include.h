@@ -74,6 +74,6 @@ int server_conns_close(conn_t **conn, int idx);
 int server_conns_getfree(conn_t **conns);
 int server_connect(sock_t *server);
 int server_recv(tdata_t *data);
-int server_send(sock_t *server, char *buffer);
+int server_send(conn_t **conns, char *buffer);
 
 #endif

@@ -44,6 +44,8 @@ int server_conns_close(conn_t **conn, int idx)
     *conn = NULL;
     pool[idx] = 0;
 
+	server_send(conn, "/quit\n");
+
     printf("Connection %d closed!\n", fd);
 	fflush(stdout);
 
@@ -189,7 +191,7 @@ int server_recv(tdata_t *data)
 			}
 			break;
 		}
-		if(server_send(server, buffer2) == -1) break;
+		if(server_send(server->s_conn_list, buffer2) == -1) break;
 
 		memset(buffer, 0, BUFFERLEN);
 		memset(buffer2, 0, BUFFERLEN);
@@ -199,7 +201,7 @@ int server_recv(tdata_t *data)
 	pthread_exit(0);
 }
 
-int server_send(sock_t *server, char *buffer)
+int server_send(conn_t **conns, char *buffer)
 {
 	pthread_mutex_lock(&fd_mtx);
 
@@ -207,9 +209,9 @@ int server_send(sock_t *server, char *buffer)
 
 	for(size_t i=0; i<CONNLIMIT; ++i)
 	{
-		if(server->s_conn_list[i] != NULL)
+		if(conns[i] != NULL)
 		{
-			if((retval = SSL_write(server->s_conn_list[i]->c_ssl, buffer, strlen(buffer))) <= 0)
+			if((retval = SSL_write(conns[i]->c_ssl, buffer, strlen(buffer))) <= 0)
 			{
 				ssl_errck("SSL_write", retval);
 				pthread_mutex_unlock(&fd_mtx);
