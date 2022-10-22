@@ -30,6 +30,7 @@ extern pthread_mutex_t sock_mtx;
 extern pthread_mutex_t errno_mtx;
 extern pthread_mutex_t tdata_mtx;
 extern pthread_mutex_t run_mtx;
+extern pthread_mutex_t size_mtx;
 extern pthread_t pool[CONNLIMIT];
 extern int running;
 extern int cli_row;

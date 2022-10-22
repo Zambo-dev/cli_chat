@@ -131,6 +131,8 @@ int server_connect(sock_t *server)
 		printf("Connected to %d -> %s\n", fd_tmp, server->s_conn_list[idx]->c_ip);
 		fflush(stdout);
 
+		pthread_mutex_lock(&tdata_mtx);
+
 		tdata_t tmp = {server, idx};
 		pthread_create(&pool[idx], NULL, (void *)server_recv, (void *)&tmp);
 	}
@@ -142,6 +144,8 @@ int server_recv(tdata_t *data)
 {
 	sock_t *server = data->sock;
 	int idx = data->idx;
+
+	pthread_mutex_unlock(&tdata_mtx);
 
 	char buffer[BUFFERLEN] = {0};
 	char buffer2[BUFFERLEN] = {0};
@@ -166,7 +170,7 @@ int server_recv(tdata_t *data)
 		{
 			ssl_errck("SSL_read", retval);
 			pthread_mutex_unlock(&fd_mtx);
-			return -1;
+			break;
 		}
 
 		snprintf(buffer2, BUFFERLEN, "%s: ", c->c_ip);
@@ -175,7 +179,16 @@ int server_recv(tdata_t *data)
 		printf("%s", buffer2);
 		fflush(stdout);
 
-		if(strncmp(buffer, "/quit\n", 6) == 0) break;
+		if(strncmp(buffer, "/quit\n", 6) == 0)
+		{
+			if((retval = SSL_write(server->s_conn_list[idx]->c_ssl, buffer, strlen(buffer))) <= 0)
+			{
+				ssl_errck("SSL_write", retval);
+				pthread_mutex_unlock(&fd_mtx);
+				break;
+			}
+			break;
+		}
 		if(server_send(server, buffer2) == -1) break;
 
 		memset(buffer, 0, BUFFERLEN);

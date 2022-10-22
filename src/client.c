@@ -81,9 +81,20 @@ int client_recv(sock_t *client)
 			
 			printf("\x1b[%d;1H\x1b[0KServer: Connection closed!\x1b[%d;1HClient: ", serv_row, cli_row);
 			fflush(stdout);
-
-			pthread_exit(0);
+			break;
 		}
+
+		if(strncmp(buffer, "/quit\n", 6) == 0)
+		{
+			/* Lock running mutex */
+			pthread_mutex_lock(&run_mtx);
+			running = 0;
+			/* Unock running mutex */
+			pthread_mutex_unlock(&run_mtx);
+			break;
+		}
+
+		pthread_mutex_lock(&size_mtx);
 
 		if(serv_row == cli_row-1)
 		{
@@ -92,6 +103,8 @@ int client_recv(sock_t *client)
 		}
 		else
 			++serv_row;
+
+		pthread_mutex_unlock(&size_mtx);
 
 		printf("\x1b[%d;1H\x1b[0K%s\x1b[%d;1HClient: ", serv_row, buffer, cli_row);
 		fflush(stdout);
@@ -132,8 +145,7 @@ int client_send(sock_t *client)
 			running = 0;
 			/* Unock running mutex */
 			pthread_mutex_unlock(&run_mtx);
-			
-			pthread_exit(0);
+			break;
 		}
 
 		if((retval = SSL_write(client->s_conn.c_ssl, buffer, BUFFERLEN)) <= 0)
@@ -144,8 +156,7 @@ int client_send(sock_t *client)
 			running = 0;
 			/* Unock running mutex */
 			pthread_mutex_unlock(&run_mtx);
-			
-			pthread_exit(0);
+			break;
 		}
 
 		if(strncmp(buffer, "/quit\n", 6) == 0)
@@ -155,7 +166,6 @@ int client_send(sock_t *client)
 			running = 0;
 			/* Unock running mutex */
 			pthread_mutex_unlock(&run_mtx);
-
 			break;	
 		}
 
