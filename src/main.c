@@ -66,6 +66,10 @@ int main(int argc, char* argv[])
 		}
 		while(strncmp(command, "/quit\n", 6) != 0);
 
+		pthread_mutex_lock(&fd_mtx);
+		server_send(&server, "/quit\n");
+		pthread_mutex_unlock(&fd_mtx);
+
         pthread_mutex_lock(&run_mtx);
 		running = 0;
         pthread_mutex_unlock(&run_mtx);
