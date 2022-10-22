@@ -30,6 +30,8 @@ int server_conns_close(conn_t **conn, int idx)
 {
 	pthread_mutex_lock(&fd_mtx);
 
+	server_send(conn, "/quit\n");
+
     int fd = (*conn)->c_fd;
     SSL_free((*conn)->c_ssl);
     if(close((*conn)->c_fd) == -1)
@@ -43,8 +45,6 @@ int server_conns_close(conn_t **conn, int idx)
     free(*conn);
     *conn = NULL;
     pool[idx] = 0;
-
-	server_send(conn, "/quit\n");
 
     printf("Connection %d closed!\n", fd);
 	fflush(stdout);
@@ -191,7 +191,7 @@ int server_recv(tdata_t *data)
 			}
 			break;
 		}
-		
+
 		pthread_mutex_lock(&fd_mtx);
 		if(server_send(server->s_conn_list, buffer2) == -1) break;
 		pthread_mutex_unlock(&fd_mtx);
