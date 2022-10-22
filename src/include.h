@@ -30,6 +30,7 @@ extern pthread_mutex_t sock_mtx;
 extern pthread_mutex_t errno_mtx;
 extern pthread_mutex_t tdata_mtx;
 extern pthread_mutex_t run_mtx;
+extern pthread_mutex_t size_mtx;
 extern pthread_t pool[CONNLIMIT];
 extern int running;
 extern int cli_row;
@@ -57,8 +58,9 @@ typedef struct THREAD_DATA
 
 
 /* General functions */
-void errck(char *func_name);
-int sock_init(sock_t *sock, char *ip, char *port);
+void fd_errck(char *func_name);
+void ssl_errck(char *func_name, int retval);
+int sock_init(sock_t *sock, char *ip, char *port, char *cert, char *key);
 int sock_close(sock_t *sock);
 
 /* Client functions */
@@ -72,6 +74,6 @@ int server_conns_close(conn_t **conn, int idx);
 int server_conns_getfree(conn_t **conns);
 int server_connect(sock_t *server);
 int server_recv(tdata_t *data);
-int server_send(sock_t *server, char *buffer);
+int server_send(conn_t **conns, char *buffer);
 
 #endif
