@@ -191,7 +191,11 @@ int server_recv(tdata_t *data)
 			}
 			break;
 		}
+		
+		pthread_mutex_lock(&fd_mtx);
 		if(server_send(server->s_conn_list, buffer2) == -1) break;
+		pthread_mutex_unlock(&fd_mtx);
+
 
 		memset(buffer, 0, BUFFERLEN);
 		memset(buffer2, 0, BUFFERLEN);
@@ -203,8 +207,6 @@ int server_recv(tdata_t *data)
 
 int server_send(conn_t **conns, char *buffer)
 {
-	pthread_mutex_lock(&fd_mtx);
-
 	int retval;
 
 	for(size_t i=0; i<CONNLIMIT; ++i)
@@ -220,6 +222,5 @@ int server_send(conn_t **conns, char *buffer)
 		}
 	}
 
-	pthread_mutex_unlock(&fd_mtx);
 	return 0;
 }
