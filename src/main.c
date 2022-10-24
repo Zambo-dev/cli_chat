@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "include.h"
+#include "sock.h"
+#include "client.h"
+#include "server.h"
+#include "err.h"
 
 
 int main(int argc, char* argv[])
