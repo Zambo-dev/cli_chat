@@ -1,4 +1,5 @@
-#include "include.h"
+#include "server.h"
+#include "err.h"
 
 
 int server_conns_init(conn_t **conn, SSL_CTX *server_ctx, int fd, char *ip)

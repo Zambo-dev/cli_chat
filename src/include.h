@@ -50,30 +50,4 @@ typedef struct SOCK_T
 	struct sockaddr_in s_host;
 } sock_t;
 
-typedef struct THREAD_DATA
-{
-	sock_t *sock;
-	int idx;
-} tdata_t;
-
-
-/* General functions */
-void fd_errck(char *func_name);
-void ssl_errck(char *func_name, int retval);
-int sock_init(sock_t *sock, char *ip, char *port, char *cert, char *key);
-int sock_close(sock_t *sock);
-
-/* Client functions */
-int client_connect(sock_t *client);
-int client_recv(sock_t *client);
-int client_send(sock_t *client);
-
-/* Server functions */
-int server_conns_init(conn_t **conn, SSL_CTX *server_ctx, int fd, char *ip);
-int server_conns_close(conn_t **conn, int idx);
-int server_conns_getfree(conn_t **conns);
-int server_connect(sock_t *server);
-int server_recv(tdata_t *data);
-int server_send(conn_t **conns, char *buffer);
-
 #endif

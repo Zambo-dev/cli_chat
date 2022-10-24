@@ -1,4 +1,5 @@
-#include "include.h"
+#include "client.h"
+#include "err.h"
 
 
 int client_connect(sock_t *client)
