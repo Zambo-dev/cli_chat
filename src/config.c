@@ -57,6 +57,8 @@ int conf_load(conf_t *conf, char *filepath)
 			strcpy(conf->keyfile, data);
 	}
 
+	close(fd);
+
 	conf_log(conf);
 
 	return 0;
