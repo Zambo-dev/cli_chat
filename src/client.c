@@ -170,7 +170,7 @@ int client_send(sock_t *client)
 			break;	
 		}
 
-		printf("\x1b[%d;1HClient: ", cli_row);
+		printf("\x1b[%d;1HClient: \x1b[0K", cli_row);
 		fflush(stdout);
 
 		memset(buffer, 0, BUFFERLEN);
