@@ -7,14 +7,30 @@
 #include "config.h"
 
 
-int main(int argc, char* argv[])
+int parse_args(int argc, char **argv, char *find)
+{
+	for(int i=0; i<argc; ++i)
+		if(strcmp(argv[i], find) == 0)
+			return i+1;
+
+	return 0;
+}
+
+int main(int argc, char** argv)
 {
 	conf_t conf;
+	int retval;
 
-	if(argc > 1)
-		conf_load(&conf, argv[1]);
+	if(parse_args(argc, argv, "-t") == 0)
+	{
+		puts("Wrong paramenter! -t <s/c> -c <config.conf>");
+		return EXIT_FAILURE;
+	}
+
+	if((retval = parse_args(argc, argv, "-c")) == 0)
+		conf_load(&conf, "client.conf");
 	else
-		conf_load(&conf, "default.conf");
+		conf_load(&conf, argv[retval]);
 
 	printf("\x1b[2J\x1b[1;1H");
 	fflush(stdout);
