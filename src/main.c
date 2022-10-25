@@ -23,10 +23,11 @@ int main(int argc, char** argv)
 
 	if((retval = parse_args(argc, argv, "-t")) == 0)
 	{
-		is_client = (argv[retval][0] == 'c') ? 1 : 0;
 		puts("Wrong paramenter! -t <s/c> -c <config.conf>");
 		return EXIT_FAILURE;
 	}
+	
+	is_client = (argv[retval][0] == 'c') ? 1 : 0;
 
 	if((retval = parse_args(argc, argv, "-c")) == 0)
 	{
