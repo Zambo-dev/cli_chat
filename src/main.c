@@ -68,12 +68,15 @@ int main(int argc, char** argv)
 	}
 	else		/* Server code */
 	{
-		int retval;
+		printf("FILE: %s\r\r", conf.certfile);
+		fflush(stdout);
+
 		char command[32] = {0};
 		sock_t server;
 		pthread_t server_thd;
 		fd_set readfd;
 		struct timeval tv;
+
 
 		if(sock_init(&server, NULL, conf.port, conf.certfile, conf.keyfile) == -1) return EXIT_FAILURE;
 

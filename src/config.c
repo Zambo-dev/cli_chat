@@ -36,12 +36,24 @@ int conf_load(conf_t *conf, char *filepath)
 	strcpy(conf->port, data);
 
 	data = strtok(NULL, "=");
-	if((data = strtok(NULL, "\n")))
+	if((data = strtok(NULL, "\r")))
+	{
+		char *sstr;
+		if((sstr = strstr(data, "~/")) != NULL)
+			sprintf(conf->certfile, "%s/%s", getenv("HOME"), sstr+2);
+		else
 		strcpy(conf->certfile, data);
+	}
 
 	data = strtok(NULL, "=");
-	if((data = strtok(NULL, "\n")))
-		strcpy(conf->keyfile, data);
+	if((data = strtok(NULL, "\r")))
+	{
+		char *sstr;
+		if((sstr = strstr(data, "~/")) != NULL)
+			sprintf(conf->keyfile, "%s/%s", getenv("HOME"), sstr+2);
+		else
+			strcpy(conf->keyfile, data);
+	}
 
 	conf_log(conf);
 
