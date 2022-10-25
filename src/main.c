@@ -42,6 +42,8 @@ int main(int argc, char** argv)
 	else
 		conf_load(&conf, argv[retval]);
 
+	if(is_client) printf("CLIENT"); else printf("SERVER");
+
 	if(is_client)	/* Client code */
 	{
 		sock_t client;
