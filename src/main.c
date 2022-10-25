@@ -19,23 +19,29 @@ int parse_args(int argc, char **argv, char *find)
 int main(int argc, char** argv)
 {
 	conf_t conf;
-	int retval;
+	int retval, is_client;
 
-	if(parse_args(argc, argv, "-t") == 0)
+	if((retval = parse_args(argc, argv, "-t")) == 0)
 	{
+		is_client = (argv[retval][0] == 'c') ? 1 : 0;
 		puts("Wrong paramenter! -t <s/c> -c <config.conf>");
 		return EXIT_FAILURE;
 	}
 
 	if((retval = parse_args(argc, argv, "-c")) == 0)
-		conf_load(&conf, "client.conf");
+	{
+		if(is_client)
+			conf_load(&conf, "client.conf");
+		else
+			conf_load(&conf, "server.conf");
+	}
 	else
 		conf_load(&conf, argv[retval]);
 
 	printf("\x1b[2J\x1b[1;1H");
 	fflush(stdout);
 
-	if(strcmp(conf.username, "") != 0)	/* Client code */
+	if(is_client)	/* Client code */
 	{
 		sock_t client;
 		pthread_t send_thd, recv_thd;
