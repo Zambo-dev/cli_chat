@@ -23,20 +23,22 @@ int conf_load(conf_t *conf, char *filepath)
 		return -1;
 	}
 
-	data = strtok(buffer, "=");
-	if((data = strtok(NULL, "\n")))
+	char delim = '"';
+
+	data = strtok(buffer, &delim);
+	if((data = strtok(NULL, &delim)))
 		strcpy(conf->username, data);
 
-	data = strtok(NULL, "=");
-	if((data = strtok(NULL, "\n")))
+	data = strtok(NULL, &delim);
+	if((data = strtok(NULL, &delim)))
 		strcpy(conf->ip, data);
 
-	data = strtok(NULL, "=");
-	if((data = strtok(NULL, "\n")))
+	data = strtok(NULL, &delim);
+	if((data = strtok(NULL, &delim)))
 	strcpy(conf->port, data);
 
-	data = strtok(NULL, "=");
-	if((data = strtok(NULL, "\r")))
+	data = strtok(NULL, &delim);
+	if((data = strtok(NULL, &delim)))
 	{
 		char *sstr;
 		if((sstr = strstr(data, "~/")) != NULL)
@@ -45,8 +47,8 @@ int conf_load(conf_t *conf, char *filepath)
 		strcpy(conf->certfile, data);
 	}
 
-	data = strtok(NULL, "=");
-	if((data = strtok(NULL, "\r")))
+	data = strtok(NULL, &delim);
+	if((data = strtok(NULL, &delim)))
 	{
 		char *sstr;
 		if((sstr = strstr(data, "~/")) != NULL)
