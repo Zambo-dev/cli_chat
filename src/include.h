@@ -23,8 +23,8 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 
-#define BUFFERLEN 512
-#define CONNLIMIT 8
+#define BUFFERLEN 1024
+#define CONNLIMIT 16
 
 
 extern pthread_mutex_t fd_mtx;
