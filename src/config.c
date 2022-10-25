@@ -44,6 +44,8 @@ int conf_load(conf_t *conf, char *filepath)
 		strcpy(conf->keyfile, data);
 
 	conf_log(conf);
+
+	return 0;
 }
 
 void conf_log(conf_t *conf)
@@ -55,4 +57,5 @@ void conf_log(conf_t *conf)
 		conf->certfile,
 		conf->keyfile
 		);
+	fflush(stdout);
 }
