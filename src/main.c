@@ -66,7 +66,7 @@ int main(int argc, char** argv)
 
 		if(sock_close(&client) == -1) return EXIT_FAILURE;
 	}
-	else if(argv[1][0] == 's')	/* Server code */
+	else		/* Server code */
 	{
 		int retval;
 		char command[32] = {0};
@@ -105,11 +105,6 @@ int main(int argc, char** argv)
 		
 		for(int i=0; i<CONNLIMIT; ++i)
 			printf("Threads status: %lu\n", pool[i]);
-	}
-	else
-	{
-		puts("Wrong paramenter! <s/c> <c_ip> <port>");
-		return EXIT_FAILURE;
 	}
 
 	return EXIT_SUCCESS;
