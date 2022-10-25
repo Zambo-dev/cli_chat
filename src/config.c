@@ -23,23 +23,23 @@ int conf_load(conf_t *conf, char *filepath)
 		return -1;
 	}
 
-	data = strtok(buffer, " ");
+	data = strtok(buffer, ":");
 	if((data = strtok(NULL, "\n")))
 		strcpy(conf->username, data);
 
-	data = strtok(NULL, " ");
+	data = strtok(NULL, ":");
 	if((data = strtok(NULL, "\n")))
 		strcpy(conf->ip, data);
 
-	data = strtok(NULL, " ");
+	data = strtok(NULL, ":");
 	if((data = strtok(NULL, "\n")))
 	strcpy(conf->port, data);
 
-	data = strtok(NULL, " ");
+	data = strtok(NULL, ":");
 	if((data = strtok(NULL, "\n")))
 		strcpy(conf->certfile, data);
 
-	data = strtok(NULL, " ");
+	data = strtok(NULL, ":");
 	if((data = strtok(NULL, "\n")))
 		strcpy(conf->keyfile, data);
 
