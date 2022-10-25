@@ -4,20 +4,22 @@
 #include "client.h"
 #include "server.h"
 #include "err.h"
+#include "config.h"
 
 
 int main(int argc, char* argv[])
 {
-	if(argc < 2)
-	{
-		puts("Missing parameters: <s/c> <c_ip> <port>");
-		return EXIT_FAILURE;
-	} 
+	conf_t conf;
+
+	if(argc > 1)
+		conf_load(&conf, argv[1]);
+	else
+		conf_load(&conf, "default.conf");
 
 	printf("\x1b[2J\x1b[1;1H");
 	fflush(stdout);
 
-	if(argv[1][0] == 'c')	/* Client code */
+	if(strcmp(conf.username, "") != 0)	/* Client code */
 	{
 		sock_t client;
 		pthread_t send_thd, recv_thd;
@@ -26,7 +28,7 @@ int main(int argc, char* argv[])
 		ioctl(STDOUT_FILENO, TIOCGWINSZ, &wsize);
         cli_row = wsize.ws_row-1; 
 
-		if(sock_init(&client, argv[2], argv[3], NULL, NULL) == -1) return EXIT_FAILURE;
+		if(sock_init(&client, conf.ip, conf.port, NULL, NULL) == -1) return EXIT_FAILURE;
 		if(client_connect(&client) == -1) return EXIT_FAILURE;
 
 		pthread_create(&send_thd, NULL, (void *)client_send, (void *)&client);
@@ -50,7 +52,7 @@ int main(int argc, char* argv[])
 		fd_set readfd;
 		struct timeval tv;
 
-		if(sock_init(&server, NULL, argv[2], argv[3], argv[4]) == -1) return EXIT_FAILURE;
+		if(sock_init(&server, NULL, conf.port, conf.certfile, conf.keyfile) == -1) return EXIT_FAILURE;
 
 		pthread_create(&server_thd, NULL, (void *)server_connect, (void *)&server);
 
