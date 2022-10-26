@@ -24,6 +24,7 @@
 #include <openssl/x509_vfy.h>
 
 #define BUFFERLEN 1024
+#define BUFFILE 2048
 #define CONNLIMIT 16
 
 
@@ -36,20 +37,5 @@ extern pthread_mutex_t size_mtx;
 extern pthread_t pool[CONNLIMIT];
 extern int running;
 extern int cli_row;
-
-typedef struct CONN_T
-{
-    SSL *c_ssl;
-    SSL_CTX *c_sslctx;
-	int c_fd;
-	char c_ip[32];
-} conn_t;
-
-typedef struct SOCK_T
-{
-    conn_t s_conn;
-	conn_t **s_conn_list;
-	struct sockaddr_in s_host;
-} sock_t;
 
 #endif

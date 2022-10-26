@@ -4,11 +4,10 @@
 int conf_load(conf_t *conf, char *filepath)
 {
 	int fd, retval;
-	char buffer[BUFFERLEN] = {0};
+	char buffer[BUFFILE] = {0};
 	char *data;
 
-	fd = open(filepath, O_RDONLY);
-	if(fd == -1)
+	if((fd = open(filepath, O_RDONLY)) == -1)
 	{
 		fd_errck("open");
 		return -1;
@@ -23,7 +22,21 @@ int conf_load(conf_t *conf, char *filepath)
 		return -1;
 	}
 
+	if(close(fd) == -1)
+	{
+		fd_errck("close");
+		return -1;
+	}
+
+	conf_store(conf, buffer);
+
+	return 0;
+}
+
+void conf_store(conf_t *conf, char *buffer)
+{
 	char delim = '"';
+	char *data;
 
 	data = strtok(buffer, &delim);
 	if((data = strtok(NULL, &delim)))
@@ -35,7 +48,7 @@ int conf_load(conf_t *conf, char *filepath)
 
 	data = strtok(NULL, &delim);
 	if((data = strtok(NULL, &delim)))
-	strcpy(conf->port, data);
+		strcpy(conf->port, data);
 
 	data = strtok(NULL, &delim);
 	if((data = strtok(NULL, &delim)))
@@ -44,7 +57,7 @@ int conf_load(conf_t *conf, char *filepath)
 		if((sstr = strstr(data, "~/")) != NULL)
 			sprintf(conf->certfile, "%s/%s", getenv("HOME"), sstr+2);
 		else
-		strcpy(conf->certfile, data);
+			strcpy(conf->certfile, data);
 	}
 
 	data = strtok(NULL, &delim);
@@ -56,10 +69,36 @@ int conf_load(conf_t *conf, char *filepath)
 		else
 			strcpy(conf->keyfile, data);
 	}
+}
 
-	close(fd);
+int conf_save(conf_t *conf, char *filepath)
+{
+	char *sstr;
+	if((sstr = strstr(filepath, "~/")) != NULL)
+		sprintf(filepath, "%s/%s", getenv("HOME"), sstr+2);
 
-	conf_log(conf);
+	int fd = open(filepath, O_RDWR | O_CREAT, S_IRWXU);
+	char quotes = '"';
+	char tmp[BUFFILE] = {0};
+
+	sprintf(tmp, "USERNAME=%c%s%c\n", quotes, conf->username, quotes);
+	write(fd, tmp, strlen(tmp));
+	sprintf(tmp, "IP=%c%s%c\n", quotes, conf->ip, quotes);
+	write(fd, tmp, strlen(tmp));
+	sprintf(tmp, "PORT=%c%s%c\n", quotes, conf->port, quotes);
+	write(fd, tmp, strlen(tmp));
+	sprintf(tmp, "CERT=%c%s%c\n", quotes, conf->certfile, quotes);
+	write(fd, tmp, strlen(tmp));
+	sprintf(tmp, "KEY=%c%s%c\n", quotes, conf->keyfile, quotes);
+	write(fd, tmp, strlen(tmp));
+
+	fsync(fd);
+
+	if(close(fd) == -1)
+	{
+		fd_errck("close");
+		return -1;
+	}
 
 	return 0;
 }

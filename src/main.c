@@ -23,16 +23,38 @@ int main(int argc, char** argv)
 
 	if((retval = parse_args(argc, argv, "-t")) == 0)
 	{
-		puts("Wrong paramenter! -t <s/c> -c <config.conf>");
+		puts("Wrong paramenter! -t <s/c>");
 		return EXIT_FAILURE;
 	}
-
+	/* Check if socket is client or server */
 	is_client = (argv[retval][0] == 'c') ? 1 : 0;
 
 	printf("\x1b[2J\x1b[1;1H");
 	fflush(stdout);
 
-	if((retval = parse_args(argc, argv, "-c")) == 0)
+	if((retval = parse_args(argc, argv, "-c")) != 0)
+	{
+		char tmp[BUFFILE] = {0};
+		char buffer[BUFFILE] = {0};
+		char quote = '"';
+		int count = 0;
+		char *arr[5] = {"USERNAME", "IP", "PORT", "CERT", "KEY"};
+
+		while(count < 5)
+		{
+			sprintf(tmp, "%s=%c%s%c\n", arr[count], quote, argv[retval], quote);
+			strcat(buffer, tmp);
+
+			++retval;
+			++count;
+		}
+
+		conf_store(&conf, buffer);
+
+		if((retval = parse_args(argc, argv, "-s")) != 0)
+			conf_save(&conf, argv[retval]);
+	}
+	else if((retval = parse_args(argc, argv, "-l")) == 0)
 	{
 		if(is_client)
 			conf_load(&conf, "client.conf");
@@ -41,6 +63,8 @@ int main(int argc, char** argv)
 	}
 	else
 		conf_load(&conf, argv[retval]);
+
+	conf_log(&conf);
 
 	if(is_client)	/* Client code */
 	{

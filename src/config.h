@@ -3,7 +3,7 @@
 
 #include "include.h"
 
-#define DATALEN 128
+#define DATALEN 512
 
 
 typedef struct CONF_T
@@ -17,6 +17,7 @@ typedef struct CONF_T
 } conf_t;
 
 int conf_load(conf_t *conf, char *filepath);
+void conf_store(conf_t *conf, char *buffer);
 int conf_save(conf_t *conf, char *filepath);
 void conf_log(conf_t *conf);
 

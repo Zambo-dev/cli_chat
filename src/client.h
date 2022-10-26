@@ -2,6 +2,7 @@
 #define CLIENT_H
 
 #include "include.h"
+#include "sock.h"
 
 
 int client_connect(sock_t *client);
