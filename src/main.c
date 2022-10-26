@@ -42,7 +42,7 @@ int main(int argc, char** argv)
 
 		while(count < 5)
 		{
-			sprintf(tmp, "%s=%c%s%c\n", arr[count], quote, argv[retval], quote);
+			sprintf(tmp, "%s=%c%s%c\r\n", arr[count], quote, argv[retval], quote);
 			strcat(buffer, tmp);
 
 			++retval;

@@ -35,23 +35,25 @@ int conf_load(conf_t *conf, char *filepath)
 
 void conf_store(conf_t *conf, char *buffer)
 {
-	char delim = '"';
-	char *data;
+	char *delim = "\"";
+	char *data, *string;
 
-	data = strtok(buffer, &delim);
-	if((data = strtok(NULL, &delim)))
+	string = strdup(buffer);
+
+	data = strtok(string, delim);
+	if((data = strtok(NULL, delim)))
 		strcpy(conf->username, data);
 
-	data = strtok(NULL, &delim);
-	if((data = strtok(NULL, &delim)))
+	data = strtok(NULL, delim);
+	if((data = strtok(NULL, delim)))
 		strcpy(conf->ip, data);
 
-	data = strtok(NULL, &delim);
-	if((data = strtok(NULL, &delim)))
+	data = strtok(NULL, delim);
+	if((data = strtok(NULL, delim)))
 		strcpy(conf->port, data);
 
-	data = strtok(NULL, &delim);
-	if((data = strtok(NULL, &delim)))
+	data = strtok(NULL, delim);
+	if((data = strtok(NULL, delim)))
 	{
 		char *sstr;
 		if((sstr = strstr(data, "~/")) != NULL)
@@ -60,8 +62,8 @@ void conf_store(conf_t *conf, char *buffer)
 			strcpy(conf->certfile, data);
 	}
 
-	data = strtok(NULL, &delim);
-	if((data = strtok(NULL, &delim)))
+	data = strtok(NULL, delim);
+	if((data = strtok(NULL, delim)))
 	{
 		char *sstr;
 		if((sstr = strstr(data, "~/")) != NULL)
@@ -69,6 +71,8 @@ void conf_store(conf_t *conf, char *buffer)
 		else
 			strcpy(conf->keyfile, data);
 	}
+
+	free(string);
 }
 
 int conf_save(conf_t *conf, char *filepath)
