@@ -10,7 +10,7 @@
 int parse_args(int argc, char **argv, char *find)
 {
 	for(int i=0; i<argc; ++i)
-		if(strcmp(argv[i], find) == 0)
+		if(strstr(argv[i], find) != NULL)
 			return i+1;
 
 	return 0;
@@ -32,17 +32,18 @@ int main(int argc, char** argv)
 	printf("\x1b[2J\x1b[1;1H");
 	fflush(stdout);
 
-	if((retval = parse_args(argc, argv, "-c")) != 0)
+	if(parse_args(argc, argv, "-c") != 0)
 	{
 		char tmp[BUFFILE] = {0};
 		char buffer[BUFFILE] = {0};
 		char quote = '"';
 		int count = 0;
-		char *arr[5] = {"USERNAME", "IP", "PORT", "CERT", "KEY"};
+		char *arr[5] = {"U=", "I=", "P=", "C=", "K="};
 
 		while(count < 5)
 		{
-			sprintf(tmp, "%s=%c%s%c\r\n", arr[count], quote, argv[retval], quote);
+			retval = parse_args(argc, argv, arr[count]) - 1;
+			sprintf(tmp, "%s=%c%s%c\r\n", arr[count], quote, (retval > 0) ? argv[retval]+2 : " ", quote);
 			strcat(buffer, tmp);
 
 			++retval;
