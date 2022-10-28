@@ -7,6 +7,5 @@ Flags:
 - -t < s/c > define the socket type 's' for server or 'c' for client
 - -l < file.conf > load config file
 - -c U=\<username> I=\<ip> P=\<port> C=\<cert.pem> K=\<key.pem> 
-  - to leave a parameter blank leave a space between double quotes
   - add '-s < filename.conf >' to save the custom configuration 
 
