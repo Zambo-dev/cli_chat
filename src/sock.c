@@ -3,7 +3,7 @@
 #include "err.h"
 
 int sock_init(sock_t *sock, char* ip, char *port, char *cert, char *key)
-{	
+{
 	/* Lock scoket mutex */
 	pthread_mutex_lock(&sock_mtx);
 

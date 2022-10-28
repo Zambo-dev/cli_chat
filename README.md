@@ -3,17 +3,10 @@
 Command line group messagging client/server build with [OpenSSL](https://github.com/openssl/openssl.git) for socket cryptography
 
 ## How to use
-```bash
-# Compile:
-make
+Flags:
+- -t < s/c > define the socket type 's' for server or 'c' for client
+- -l < file.conf > load config file
+- -c U=\<username> I=\<ip> P=\<port> C=\<cert.pem> K=\<key.pem> 
+  - to leave a parameter blank leave a space between double quotes
+  - add '-s < filename.conf >' to save the custom configuration 
 
-# Run as server
-./bin/clichat s <PORT> <cert.pem> <key.pem>
-# Run as client
-./bin/clichat c <IPv4> <PORT>
-
-# Local testing
-make server
-make client
-
-```

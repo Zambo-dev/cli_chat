@@ -2,6 +2,7 @@
 #define SERVER_H
 
 #include "include.h"
+#include "sock.h"
 
 
 typedef struct THREAD_DATA

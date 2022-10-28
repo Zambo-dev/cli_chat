@@ -6,6 +6,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -21,8 +23,9 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 
-#define BUFFERLEN 512
-#define CONNLIMIT 8
+#define BUFFERLEN 1024
+#define BUFFILE 2048
+#define CONNLIMIT 16
 
 
 extern pthread_mutex_t fd_mtx;
@@ -34,20 +37,5 @@ extern pthread_mutex_t size_mtx;
 extern pthread_t pool[CONNLIMIT];
 extern int running;
 extern int cli_row;
-
-typedef struct CONN_T
-{
-    SSL *c_ssl;
-    SSL_CTX *c_sslctx;
-	int c_fd;
-	char c_ip[32];
-} conn_t;
-
-typedef struct SOCK_T
-{
-    conn_t s_conn;
-	conn_t **s_conn_list;
-	struct sockaddr_in s_host;
-} sock_t;
 
 #endif
