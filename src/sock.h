@@ -10,6 +10,7 @@ typedef struct CONN_T
 	SSL_CTX *c_sslctx;
 	int c_fd;
 	char c_ip[32];
+	char c_usnm[32];
 } conn_t;
 
 typedef struct SOCK_T

@@ -23,6 +23,16 @@ int server_conns_init(conn_t **conn, SSL_CTX *server_ctx, int fd, char *ip)
         return -1;
     }
 
+	char username[32];
+	if((retval = SSL_read((*conn)->c_ssl, username, 32)) <= 0)
+	{
+		ssl_errck("SSL_read", retval);
+		pthread_mutex_unlock(&fd_mtx);
+		return -1;
+	}
+
+	strncpy((*conn)->c_usnm, username, 32);
+
     pthread_mutex_unlock(&fd_mtx);
 	return 0;
 }
@@ -176,7 +186,7 @@ int server_recv(tdata_t *data)
 			break;
 		}
 
-		snprintf(buffer2, BUFFERLEN, "%s: ", c->c_ip);
+		snprintf(buffer2, BUFFERLEN, "%s: ", c->c_usnm);
 		strcat(buffer2, buffer);
 
 		printf("%s", buffer2);
