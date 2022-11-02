@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "include.h"
 #include "sock.h"
 #include "client.h"
 #include "server.h"
@@ -78,6 +79,18 @@ int main(int argc, char** argv)
 
 		if(sock_init(&client, conf.ip, conf.port, NULL, NULL) == -1) return EXIT_FAILURE;
 		if(client_connect(&client) == -1) return EXIT_FAILURE;
+
+		if((retval = SSL_write(client.s_conn.c_ssl, conf.username, 32)) <= 0)
+		{
+			ssl_errck("SSL_write", retval);
+			/* Lock running mutex */
+			pthread_mutex_lock(&run_mtx);
+			running = 0;
+			/* Unock running mutex */
+			pthread_mutex_unlock(&run_mtx);
+
+			return EXIT_FAILURE;
+		}
 
 		pthread_create(&send_thd, NULL, (void *)client_send, (void *)&client);
 		pthread_create(&recv_thd, NULL, (void *)client_recv, (void *)&client);
