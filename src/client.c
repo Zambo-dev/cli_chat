@@ -55,7 +55,7 @@ int client_recv(sock_t *client)
 {
 	char buffer[BUFFERLEN] = {0};
 	int retval;
-	int serv_row = 6;
+	int serv_row = 10;
 
 	fd_set readfd;
 	struct timeval tv;

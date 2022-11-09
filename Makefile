@@ -39,9 +39,9 @@ ifeq ("$(wildcard $@)", "")
 endif
 
 server: $(CFL) $(EXE)
-	sudo $(EXE) s 4444 /cert.pem /key.pem
+	$(EXE) -t s
 client: $(CFL) $(EXE)
-	$(EXE) c 127.0.0.1 4444
+	$(EXE) -t c
 
 clean:
 	rm $(BIN)/* $(BUILD)/*
