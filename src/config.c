@@ -72,7 +72,7 @@ void conf_store(conf_t *conf, char *buffer)
 			strcpy(conf->keyfile, data);
 	}
 
-	free(string);
+	fflush(stdin);
 }
 
 int conf_save(conf_t *conf, char *filepath)
@@ -109,7 +109,7 @@ int conf_save(conf_t *conf, char *filepath)
 
 void conf_log(conf_t *conf)
 {
-	printf("Config log:\nUsername: %s\nIp: %s\nPort: %s\nCert: %s\nKey: %s\n",
+	printf("Config log:\nUsername: %s\nIp: %s\nPort: %s\nCert: %s\nKey: %s\n\n",
 		conf->username,
 		conf->ip,
 		conf->port,
