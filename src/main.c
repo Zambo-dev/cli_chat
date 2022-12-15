@@ -109,6 +109,7 @@ int main(int argc, char** argv)
 		printf("FILE: %s\r\r", conf.certfile);
 		fflush(stdout);
 
+		int run;
 		char command[32] = {0};
 		sock_t server;
 		pthread_t server_thd;
@@ -122,6 +123,11 @@ int main(int argc, char** argv)
 
 		do
 		{
+			pthread_mutex_lock(&run_mtx);
+			run = running;
+			pthread_mutex_unlock(&run_mtx);
+			if(!run) break;
+
 			FD_ZERO(&readfd);
 			FD_SET(STDIN_FILENO, &readfd);
 
@@ -139,7 +145,7 @@ int main(int argc, char** argv)
 		running = 0;
 		pthread_mutex_unlock(&run_mtx);
 
-		while(pthread_join(server_thd, 0) != 0);
+		while(pthread_join(server_thd, 0) != 0) {}
 		puts("Closed connection thread!\n");
 
 		if(sock_close(&server) == -1) return EXIT_FAILURE;

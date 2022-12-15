@@ -91,6 +91,9 @@ int server_connect(sock_t *server)
 	{
 		fd_errck("bind");
 		pthread_mutex_unlock(&sock_mtx);
+		pthread_mutex_lock(&run_mtx);
+		running = 0;
+		pthread_mutex_unlock(&run_mtx);
         pthread_exit(0);
 	}
 	puts("Socket binded!");
@@ -100,6 +103,9 @@ int server_connect(sock_t *server)
 	{
 		fd_errck("listen");
 		pthread_mutex_unlock(&sock_mtx);
+		pthread_mutex_lock(&run_mtx);
+		running = 0;
+		pthread_mutex_unlock(&run_mtx);
         pthread_exit(0);
 	}
 	puts("Listening...");
@@ -107,13 +113,17 @@ int server_connect(sock_t *server)
 
 	pthread_mutex_unlock(&sock_mtx);
 
-	int idx;
+	int idx, run;
 	fd_set readfd;
 	struct timeval tv;
 	int fd_tmp;
 
-	while(running)
+	while(1)
 	{
+		pthread_mutex_lock(&run_mtx);
+		if(!running) break;
+		pthread_mutex_unlock(&run_mtx);
+
 		while((idx = server_conns_getfree(server->s_conn_list)) == -1);
 
 		FD_ZERO(&readfd);
@@ -168,7 +178,7 @@ int server_recv(tdata_t *data)
 	fd_set readfd;
 	struct timeval tv;
 
-	while(1)
+	while(running)
 	{
 		FD_ZERO(&readfd);
 		FD_SET(c->c_fd, &readfd);
@@ -183,6 +193,9 @@ int server_recv(tdata_t *data)
 		{
 			ssl_errck("SSL_read", retval);
 			pthread_mutex_unlock(&fd_mtx);
+			pthread_mutex_lock(&run_mtx);
+			running = 0;
+			pthread_mutex_unlock(&run_mtx);
 			break;
 		}
 
@@ -198,6 +211,9 @@ int server_recv(tdata_t *data)
 			{
 				ssl_errck("SSL_write", retval);
 				pthread_mutex_unlock(&fd_mtx);
+				pthread_mutex_lock(&run_mtx);
+				running = 0;
+				pthread_mutex_unlock(&run_mtx);
 				break;
 			}
 			break;

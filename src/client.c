@@ -54,14 +54,20 @@ int client_connect(sock_t *client)
 int client_recv(sock_t *client)
 {
 	char buffer[BUFFERLEN] = {0};
-	int retval;
+	int retval, run;
 	int serv_row = 10;
 
 	fd_set readfd;
 	struct timeval tv;
 
-	while(running)
+	while(1)
 	{
+		pthread_mutex_lock(&run_mtx);
+		run = running;
+		pthread_mutex_unlock(&run_mtx);
+
+		if(!run) break;
+
 		FD_ZERO(&readfd);
 		FD_SET(client->s_conn.c_fd, &readfd);
 
