@@ -1,4 +1,4 @@
-#include "config.h"
+#include "conf.h"
 #include "err.h"
 
 int conf_load(conf_t *conf, char *filepath)

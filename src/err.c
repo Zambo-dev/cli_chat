@@ -1,6 +1,10 @@
 #include "err.h"
 
 
+/* 
+* Check if errno is set and if so,
+* print the relative error string
+*/
 void fd_errck(char *func_name)
 {
 	/* Lock errno mutex */
@@ -10,20 +14,23 @@ void fd_errck(char *func_name)
 	{	
 		/* Print errno's value and string */
 		printf("%s -> ERROR %d: %s\n", func_name, errno, strerror(errno));
+		fflush(stdout);
 		/* Reset errno */
 		errno = 0;
 	}
-
-	fflush(stdout);
 
 	/* Unlock errno mutex */
 	pthread_mutex_unlock(&errno_mtx);
 }
 
+/* 
+* Check ssl return value and
+* print the relative error string
+*/
 void ssl_errck(char *func_name, int retval)
 {
-	char err[BUFFERLEN];
-	snprintf(err, BUFFERLEN, "%s -> %s", func_name, ERR_error_string(retval, NULL));
-	printf("%s\n", err);
+	char error[BUFFERLEN];
+	snprintf(error, BUFFERLEN, "%s -> %s", func_name, ERR_error_string(retval, NULL));
+	printf("%s\n", error);
 	fflush(stdout);
 }
