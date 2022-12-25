@@ -1,7 +1,7 @@
 #ifndef ERR_H
 #define ERR_H
 
-#include "include.h"
+#include <openssl/err.h>
 
 
 void fd_errck(char *func_name);

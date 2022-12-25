@@ -1,5 +1,8 @@
 #include "err.h"
+#include "string.h"
 
+
+pthread_mutex_t errno_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 /* 
 * Check if errno is set and if so,
@@ -9,7 +12,7 @@ void fd_errck(char *func_name)
 {
 	/* Lock errno mutex */
 	pthread_mutex_lock(&errno_mtx);
-	
+
 	if(errno != 0)
 	{	
 		/* Print errno's value and string */
@@ -29,8 +32,8 @@ void fd_errck(char *func_name)
 */
 void ssl_errck(char *func_name, int retval)
 {
-	char error[BUFFERLEN];
-	snprintf(error, BUFFERLEN, "%s -> %s", func_name, ERR_error_string(retval, NULL));
+	char error[128];
+	snprintf(error, 128, "%s -> %s", func_name, ERR_error_string(retval, NULL));
 	printf("%s\n", error);
 	fflush(stdout);
 }

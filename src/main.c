@@ -17,8 +17,8 @@ int parse_args(int argc, char **argv, char *find)
 
 int main(int argc, char** argv)
 {
-	conf_t conf;
-	int retval, is_client;
+	sock_t sock;
+	int retval;
 
 	if((retval = parse_args(argc, argv, "-t")) == 0)
 	{
@@ -26,10 +26,8 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 	/* Check if socket is client or server */
-	is_client = (argv[retval][0] == 'c') ? 1 : 0;
+	sock.conf.type = argv[retval][0];
 
-	printf("\x1b[2J\x1b[1;1H");
-	fflush(stdout);
 
 	if(parse_args(argc, argv, "-c") != 0)
 	{
@@ -49,23 +47,37 @@ int main(int argc, char** argv)
 			++count;
 		}
 
-		conf_store(&conf, buffer);
+		conf_store(&sock.conf, buffer);
 
 		if((retval = parse_args(argc, argv, "-s")) != 0)
-			conf_save(&conf, argv[retval]);
+			conf_write(&sock.conf, argv[retval]);
 	}
 	else if((retval = parse_args(argc, argv, "-l")) == 0)
 	{
-		if(is_client)
-			conf_load(&conf, "client.conf");
+		if(sock.conf.type == 'c')
+			conf_read(&sock.conf, "client.conf");
 		else
-			conf_load(&conf, "server.conf");
+			conf_read(&sock.conf, "server.conf");
 	}
 	else
-		conf_load(&conf, argv[retval]);
+		conf_read(&sock.conf, argv[retval]);
 
-	conf_log(&conf);
+	conf_log(&sock.conf);
 
-	
+
+	sock_init(&sock);
+	if(sock_connect(&sock) == -1) return EXIT_FAILURE;
+	puts("Connected!");
+
+	char buff[BUFFERLEN] = "zambo";
+	if(sock_write(&sock, buff, 6) == -1) return EXIT_SUCCESS;
+	puts("Data sent!");
+
+	char buffer[1024];
+	sock_read(&sock, buffer, 1024);
+	puts(buffer);
+
+	sock_close(&sock);
+
 	return EXIT_SUCCESS;
 }

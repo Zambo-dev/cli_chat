@@ -1,16 +1,30 @@
 #ifndef SOCK_H
 #define SOCK_H
 
-#include "include.h"
-#include "conn.h"
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/pem.h>
+#include <openssl/x509.h>
+#include <openssl/x509_vfy.h>
+#include "conf.h"
+
+#define BUFFERLEN 256
+#define CONNLIMIT 16
+
 
 typedef struct SOCK_T
 {
-	conn_t conn;
+	int fd;
+	SSL *ssl; 	
+	SSL_CTX *sslctx; 
+	conf_t conf;
 	struct sockaddr_in host;
 } sock_t;
 
-int sock_init(sock_t *sock, char *cert, char *key);
+int sock_init(sock_t *sock);
+int sock_connect(sock_t *sock);
+int sock_write(sock_t *sock, char *buffer, size_t size);
+int sock_read(sock_t *sock, char *buffer, size_t size);
 int sock_close(sock_t *sock);
 
 #endif

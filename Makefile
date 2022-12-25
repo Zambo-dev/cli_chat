@@ -10,7 +10,7 @@ CFL := $(BUILD) $(BIN)		# Create Folder List
 
 # Files
 EXE = $(BIN)/clichat
-CFILES := main.c sock.c conn.c conf.c err.c global.c
+CFILES := main.c sock.c conf.c err.c
 OFILES := $(addprefix $(BUILD)/, $(notdir $(CFILES:.c=.o)))
 
 # Aesthetics

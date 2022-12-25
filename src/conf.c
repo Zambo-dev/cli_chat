@@ -1,7 +1,8 @@
 #include "conf.h"
 #include "err.h"
 
-int conf_load(conf_t *conf, char *filepath)
+
+int conf_read(conf_t *conf, char *filepath)
 {
 	int fd, retval;
 	char buffer[BUFFILE] = {0};
@@ -16,7 +17,7 @@ int conf_load(conf_t *conf, char *filepath)
 	memset(conf, 0, sizeof(conf_t));
 
 	/* Read ip */
-	if(read(fd, buffer, BUFFERLEN) == -1)
+	if(read(fd, buffer, BUFFILE) == -1)
 	{
 		fd_errck("read");
 		return -1;
@@ -50,7 +51,7 @@ void conf_store(conf_t *conf, char *buffer)
 
 	data = strtok(NULL, delim);
 	if((data = strtok(NULL, delim)))
-		strcpy(conf->port, data);
+		conf->port = strtol(data, NULL, 10);
 
 	data = strtok(NULL, delim);
 	if((data = strtok(NULL, delim)))
@@ -75,7 +76,7 @@ void conf_store(conf_t *conf, char *buffer)
 	fflush(stdin);
 }
 
-int conf_save(conf_t *conf, char *filepath)
+int conf_write(conf_t *conf, char *filepath)
 {
 	char *sstr;
 	if((sstr = strstr(filepath, "~/")) != NULL)
@@ -89,7 +90,7 @@ int conf_save(conf_t *conf, char *filepath)
 	write(fd, tmp, strlen(tmp));
 	sprintf(tmp, "IP=%c%s%c\n", quotes, conf->ip, quotes);
 	write(fd, tmp, strlen(tmp));
-	sprintf(tmp, "PORT=%c%s%c\n", quotes, conf->port, quotes);
+	sprintf(tmp, "PORT=%c%d%c\n", quotes, conf->port, quotes);
 	write(fd, tmp, strlen(tmp));
 	sprintf(tmp, "CERT=%c%s%c\n", quotes, conf->certfile, quotes);
 	write(fd, tmp, strlen(tmp));
@@ -109,7 +110,7 @@ int conf_save(conf_t *conf, char *filepath)
 
 void conf_log(conf_t *conf)
 {
-	printf("Config log:\nUsername: %s\nIp: %s\nPort: %s\nCert: %s\nKey: %s\n\n",
+	printf("Config log:\nUsername: %s\nIp: %s\nPort: %d\nCert: %s\nKey: %s\n\n",
 		conf->username,
 		conf->ip,
 		conf->port,
