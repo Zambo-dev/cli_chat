@@ -8,17 +8,12 @@ pthread_mutex_t sock_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 int sock_init(sock_t *sock)
 {
-	/* Lock scoket mutex */
-	pthread_mutex_lock(&sock_mtx);
-
 	int retval;
 
 	/* Init socket */
 	if ((sock->fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) == -1)
 	{
 		fd_errck("socket");
-		/* Unlock scoket mutex */
-		pthread_mutex_unlock(&sock_mtx);
 		return -1;
 	}
 
@@ -34,33 +29,25 @@ int sock_init(sock_t *sock)
 	{
 		if ((sock->sslctx = SSL_CTX_new(TLS_server_method())) == NULL)
 		{
-			ssl_errck("SSL_CTX_new", 0);
-			/* Unlock socket mutex */
-			pthread_mutex_unlock(&sock_mtx);
+			ssl_errck("SSL_CTX_new", SSL_get_error(sock->ssl, retval));
 			return -1;
 		}
 		/* set the local certificate from CertFile */
 		if ((retval = SSL_CTX_use_certificate_file(sock->sslctx, sock->conf.certfile, SSL_FILETYPE_PEM)) <= 0)
 		{
-			ssl_errck("SSL_CTX_use_certificate_file", retval);
-			/* Unlock socket mutex */
-			pthread_mutex_unlock(&sock_mtx);
+			ssl_errck("SSL_CTX_use_certificate_file", SSL_get_error(sock->ssl, retval));
 			return -1;
 		}
 		/* set the private key from KeyFile (may be the same as CertFile) */
 		if ((retval = SSL_CTX_use_PrivateKey_file(sock->sslctx, sock->conf.keyfile, SSL_FILETYPE_PEM)) <= 0)
 		{
-			ssl_errck("SSL_CTX_use_PrivateKey_file", retval);
-			/* Unlock socket mutex */
-			pthread_mutex_unlock(&sock_mtx);
+			ssl_errck("SSL_CTX_use_PrivateKey_file", SSL_get_error(sock->ssl, retval));
 			return -1;
 		}
 		/* verify private key */
 		if (!(retval = SSL_CTX_check_private_key(sock->sslctx)))
 		{
-			ssl_errck("SSL_CTX_check_private_key", retval);
-			/* Unlock socket mutex */
-			pthread_mutex_unlock(&sock_mtx);
+			ssl_errck("SSL_CTX_check_private_key", SSL_get_error(sock->ssl, retval));
 			return -1;
 		}
 	}
@@ -68,23 +55,16 @@ int sock_init(sock_t *sock)
 	{
 		if ((sock->sslctx = SSL_CTX_new(TLS_client_method())) == NULL)
 		{
-			ssl_errck("SSL_CTX_new", 0);
-			/* Unlock socket mutex */
-			pthread_mutex_unlock(&sock_mtx);
+			ssl_errck("SSL_CTX_new", SSL_get_error(sock->ssl, retval));
 			return -1;
 		}
 	}
 
-	/* Unlock scoket mutex */
-	pthread_mutex_unlock(&sock_mtx);
 	return 0;
 }
 
 int sock_connect(sock_t *sock)
 {
-	/* Lock socket mutex*/
-	pthread_mutex_lock(&sock_mtx);
-
 	int retval;
 
 	/* Connect to the server */
@@ -92,57 +72,36 @@ int sock_connect(sock_t *sock)
 	do
 	{
 		retval = connect(sock->fd, (struct sockaddr *)&sock->host, len);
-		if(errno != EINPROGRESS)
-		{
-			fd_errck("connect");
-			/* Unlock socket mutex */
-			pthread_mutex_unlock(&sock_mtx);
-			return -1;
-		}
+		if((retval = (fd_errck("connect"))) == -1) return -1;
 	}
-	while(retval != 0);
+	while(retval == 1);
 
 	/* Init SSL  */
 	if ((sock->ssl = SSL_new(sock->sslctx)) == NULL)
 	{
-		ssl_errck("SSL_new", 0);
-		/* Unlock socket mutex */
-		pthread_mutex_unlock(&sock_mtx);
+		ssl_errck("SSL_new", SSL_get_error(sock->ssl, retval));
 		return -1;
 	}
 	if ((retval = SSL_set_fd(sock->ssl, sock->fd)) == 0)
 	{
-		ssl_errck("SSL_set_fd", retval);
-		/* Unlock socket mutex */
-		pthread_mutex_unlock(&sock_mtx);
+		ssl_errck("SSL_set_fd", SSL_get_error(sock->ssl, retval));
 		return -1;
 	}
 
 	do
 	{
-		if((retval = SSL_connect(sock->ssl)) < 1)
-		{
-			int err = SSL_get_error(sock->ssl, retval);
-			if(err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
-			{
-				ssl_errck("SSL_connect", retval);
-				/* Unlock socket mutex */
-				pthread_mutex_unlock(&sock_mtx);
-				return -1;
-			}
-		}
+		retval = SSL_connect(sock->ssl);
+		if((retval = ssl_errck("SSL_connect", SSL_get_error(sock->ssl, retval))) == -1)
+			return -1;
+		
 	}
-	while(retval != 1);
+	while(retval == 1);
 
-	/* Unlock socket mutex */
-	pthread_mutex_unlock(&sock_mtx);
 	return 0;
 }
 
 int sock_write(sock_t *sock, char *buffer, size_t size)
 {
-	pthread_mutex_lock(&sock_mtx);
-
 	int retval;
 	fd_set writefd;
 	struct timeval tv;
@@ -152,14 +111,12 @@ int sock_write(sock_t *sock, char *buffer, size_t size)
 		FD_ZERO(&writefd);
 		FD_SET(sock->fd, &writefd);
 
-		// Wait 0.05
-		tv.tv_sec = 1;
-		tv.tv_usec = 0;
+		tv.tv_sec = 0;
+		tv.tv_usec = 50000;
 
-		if ((retval = select(sock->fd + 1, NULL, &writefd, NULL, &tv)) == -1)
+		if((retval = select(sock->fd + 1, NULL, &writefd, NULL, &tv)) == -1)
 		{
 			fd_errck("select");
-			pthread_mutex_unlock(&sock_mtx);
 			return -1;
 		}
 
@@ -167,71 +124,48 @@ int sock_write(sock_t *sock, char *buffer, size_t size)
 
 		if ((retval = SSL_write(sock->ssl, buffer, BUFFERLEN)) <= 0)
 		{
-			ssl_errck("SSL_write", retval);
-			pthread_mutex_unlock(&sock_mtx);
+			ssl_errck("SSL_write", SSL_get_error(sock->ssl, retval));
 			return -1;
 		}
 
 		if (size >= retval)
 			size -= retval;
+			
 	} while (size >= retval);
 
-	pthread_mutex_unlock(&sock_mtx);
 	return 0;
 }
 
 int sock_read(sock_t *sock, char *buffer, size_t size)
 {
-	pthread_mutex_lock(&sock_mtx);
-
-	int retval = 0, limit = size / BUFFERLEN;
-	char buff[BUFFERLEN];
+	int retval;
+	char buff[BUFFERLEN] = "";
 	fd_set readfd;
-	struct timeval tv;
+	struct timeval timer;
 
-	do
-	{
-		FD_ZERO(&readfd);
-		FD_SET(sock->fd, &readfd);
+	FD_ZERO(&readfd);
+	FD_SET(sock->fd, &readfd);
 
-		// Wait 0.05
-		tv.tv_sec = 1;
-		tv.tv_usec = 0;
+	timer.tv_sec = 0;
+	timer.tv_usec = 50000;
 
-		if ((retval = select(sock->fd + 1, &readfd, NULL, NULL, &tv)) == -1)
-		{
-			fd_errck("select");
-			pthread_mutex_unlock(&sock_mtx);
-			return -1;
-		}
-		
-		if (!FD_ISSET(sock->fd, &readfd)) continue;
+	select(sock->fd + 1, &readfd, NULL, NULL, &timer);
+	if(fd_errck("select") == -1) return -1;
 
-		if ((retval = SSL_read(sock->ssl, buff, BUFFERLEN)) <= 0)
-		{
-			ssl_errck("SSL_read", retval);
-			pthread_mutex_unlock(&sock_mtx);
-			return -1;
-		}
+	if (!FD_ISSET(sock->fd, &readfd)) return 0;	
 
-		puts(buff);
+	retval = SSL_read(sock->ssl, buff, BUFFERLEN);
+	if(ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval)) == -1) return -1;
+	
 
-		strncat(buffer, buff, BUFFERLEN);
-		memset(buff, 0, BUFFERLEN);
+	strncat(buffer, buff, BUFFERLEN);
+	memset(buff, 0, BUFFERLEN);
 
-		if (size >= retval)
-			size -= retval;
-	} while (size >= retval && limit > 0);
-
-	pthread_mutex_unlock(&sock_mtx);
 	return 0;
 }
 
 int sock_close(sock_t *sock)
 {
-	/* Lock scoket mutex */
-	pthread_mutex_lock(&sock_mtx);
-
 	/* Clear sockaddr_in struct */
 	memset(&sock->host, 0, sizeof(struct sockaddr_in));
 
@@ -244,16 +178,10 @@ int sock_close(sock_t *sock)
 	SSL_CTX_free(sock->sslctx);
 
 	/* Close scoket fd */
-	if (close(sock->fd) == -1)
-	{
-		fd_errck("close");
-		/* Unlock scoket mutex */
-		pthread_mutex_unlock(&sock_mtx);
-		return -1;
-	}
+	close(sock->fd);
+	if(fd_errck("close") == -1) return -1;
+
 	sock->fd = 0;
 
-	/* Unlock scoket mutex */
-	pthread_mutex_unlock(&sock_mtx);
 	return 0;
 }

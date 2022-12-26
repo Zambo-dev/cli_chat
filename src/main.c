@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "include.h"
 #include "sock.h"
 #include "err.h"
@@ -65,17 +66,39 @@ int main(int argc, char** argv)
 	conf_log(&sock.conf);
 
 
+	fd_set readfd;
+	struct timeval tv;
+
 	sock_init(&sock);
 	if(sock_connect(&sock) == -1) return EXIT_FAILURE;
 	puts("Connected!");
 
-	char buff[BUFFERLEN] = "zambo";
-	if(sock_write(&sock, buff, 6) == -1) return EXIT_SUCCESS;
-	puts("Data sent!");
+	char buff[1024] = "zambo";
+	if(sock_write(&sock, buff, 6) == -1) return EXIT_FAILURE;
+	
+	do
+	{
+		char buffer[1024] = "";	
+		if(sock_read(&sock, buffer, 1024) == -1) return EXIT_FAILURE;
+		if(strncmp(buffer, "/quit", 5) == 0) break;	
+		if(strlen(buffer) > 0) printf("%s", buffer);
+		
+		FD_ZERO(&readfd);
+		FD_SET(0, &readfd);
 
-	char buffer[1024];
-	sock_read(&sock, buffer, 1024);
-	puts(buffer);
+		tv.tv_sec = 0;
+		tv.tv_usec = 50000;
+
+		if(select(1, &readfd, NULL, NULL, &tv) == -1) break;
+		if(FD_ISSET(0, &readfd))
+		{
+			memset(buffer, 0, 1024);
+			
+			retval = read(0, buffer, 1024);
+			if(sock_write(&sock, buffer, retval) == -1) return EXIT_FAILURE;
+		}
+	}
+	while(1);
 
 	sock_close(&sock);
 
