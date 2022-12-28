@@ -1,7 +1,7 @@
 #include <signal.h>
 #include "sock.h"
 #include "err.h"
-#include "pthread.h"
+#include "conf.h"
 
 
 pthread_mutex_t sock_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -100,43 +100,76 @@ int sock_connect(sock_t *sock)
 	return 0;
 }
 
-int sock_write(sock_t *sock, char *buffer, size_t size)
+int sock_listen(sock_t *sock)
+{
+	bind(sock->fd, (struct sockaddr *)&sock->host, (socklen_t)sizeof(sock->host));
+	if(fd_errck("bind") == -1) return -1;
+
+	listen(sock->fd, CONNLIMIT);
+	if(fd_errck("listen") == -1) return -1;
+
+	return 0;
+}
+
+int sock_accept(sock_t *sock, sock_t *conn)
+{
+	int retval;
+	fd_set readfd;
+	struct timeval timer;
+
+	FD_ZERO(&readfd);
+	FD_SET(sock->fd, &readfd);
+
+	timer.tv_sec = 0;
+	timer.tv_usec = 50000;
+
+	select(sock->fd + 1, &readfd, NULL, NULL, &timer);
+	if(fd_errck("select") == -1) return -1;
+
+	if (!FD_ISSET(sock->fd, &readfd)) return 1;	
+
+	socklen_t socklen = (socklen_t)sizeof(sock->host);
+	retval = accept(sock->fd, (struct sockaddr *)&sock->host, &socklen);
+	if(fd_errck("accept") == -1) return -1;
+
+	conf_init_args(&conn->conf, 'c', sock->conf.port, inet_ntoa(sock->host.sin_addr), NULL, NULL, NULL);
+	conn->fd = retval;
+	conn->sslctx = sock->sslctx;
+	conn->ssl = SSL_new(conn->sslctx);
+	SSL_set_fd(conn->ssl, conn->fd);
+
+	retval = SSL_accept(conn->ssl);
+	if(ssl_errck("SSL_accept", SSL_get_error(conn->ssl, retval)) == -1) return -1;
+
+	return 0;
+}
+
+int sock_write(sock_t *sock, char *buffer, size_t *size)
 {
 	int retval;
 	fd_set writefd;
 	struct timeval tv;
 
-	do
-	{
-		FD_ZERO(&writefd);
-		FD_SET(sock->fd, &writefd);
+	FD_ZERO(&writefd);
+	FD_SET(sock->fd, &writefd);
 
-		tv.tv_sec = 0;
-		tv.tv_usec = 50000;
+	tv.tv_sec = 0;
+	tv.tv_usec = 50000;
 
-		if((retval = select(sock->fd + 1, NULL, &writefd, NULL, &tv)) == -1)
-		{
-			fd_errck("select");
-			return -1;
-		}
+	select(sock->fd + 1, NULL, &writefd, NULL, &tv);
+	if(fd_errck("select") == -1) return -1;
 
-		if (!FD_ISSET(sock->fd, &writefd)) continue;
+	if (!FD_ISSET(sock->fd, &writefd)) return 1;
 
-		if ((retval = SSL_write(sock->ssl, buffer, BUFFERLEN)) <= 0)
-		{
-			ssl_errck("SSL_write", SSL_get_error(sock->ssl, retval));
-			return -1;
-		}
+	retval = SSL_write(sock->ssl, buffer, BUFFERLEN);
+	if(ssl_errck("SSL_write", SSL_get_error(sock->ssl, retval)) == -1) return -1;
 
-		if (size >= retval)
-			size -= retval;
-			
-	} while (size >= retval);
+	*size = retval;
 
 	return 0;
 }
 
-int sock_read(sock_t *sock, char *buffer, size_t size)
+int sock_read(sock_t *sock, char *buffer, size_t *size)
 {
 	int retval;
 	char buff[BUFFERLEN] = "";
@@ -152,7 +185,7 @@ int sock_read(sock_t *sock, char *buffer, size_t size)
 	select(sock->fd + 1, &readfd, NULL, NULL, &timer);
 	if(fd_errck("select") == -1) return -1;
 
-	if (!FD_ISSET(sock->fd, &readfd)) return 0;	
+	if (!FD_ISSET(sock->fd, &readfd)) return 1;	
 
 	retval = SSL_read(sock->ssl, buff, BUFFERLEN);
 	if(ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval)) == -1) return -1;
@@ -160,6 +193,8 @@ int sock_read(sock_t *sock, char *buffer, size_t size)
 
 	strncat(buffer, buff, BUFFERLEN);
 	memset(buff, 0, BUFFERLEN);
+
+	*size = retval;
 
 	return 0;
 }

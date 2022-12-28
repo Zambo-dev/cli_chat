@@ -11,6 +11,11 @@
 #define BUFFERLEN 256
 #define CONNLIMIT 16
 
+typedef struct MSG_T
+{
+	int len;
+	char *buff;
+} msg_t;
 
 typedef struct SOCK_T
 {
@@ -23,8 +28,10 @@ typedef struct SOCK_T
 
 int sock_init(sock_t *sock);
 int sock_connect(sock_t *sock);
-int sock_write(sock_t *sock, char *buffer, size_t size);
-int sock_read(sock_t *sock, char *buffer, size_t size);
+int sock_listen(sock_t *sock);
+int sock_accept(sock_t *sock, sock_t *conn);
+int sock_write(sock_t *sock, char *buffer, size_t *size);
+int sock_read(sock_t *sock, char *buffer, size_t *size);
 int sock_close(sock_t *sock);
 
 #endif

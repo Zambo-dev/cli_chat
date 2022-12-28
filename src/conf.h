@@ -18,7 +18,8 @@ typedef struct CONF_T
 } conf_t;
 
 int conf_read(conf_t *conf, char *filepath);
-void conf_store(conf_t *conf, char *buffer);
+int conf_init_buff(conf_t *conf, char *buffer);
+int conf_init_args(conf_t *conf, char type, short port, char *ip, char *username, char *certfile, char *keyfile);
 int conf_write(conf_t *conf, char *filepath);
 void conf_log(conf_t *conf);
 

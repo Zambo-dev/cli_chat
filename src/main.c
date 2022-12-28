@@ -20,6 +20,7 @@ int main(int argc, char** argv)
 {
 	sock_t sock;
 	int retval;
+	size_t bytes;
 
 	if((retval = parse_args(argc, argv, "-t")) == 0)
 	{
@@ -36,9 +37,9 @@ int main(int argc, char** argv)
 		char buffer[BUFFILE] = {0};
 		char quote = '"';
 		int count = 0;
-		char *arr[5] = {"U=", "I=", "P=", "C=", "K="};
+		char *arr[6] = {"T=", "U=", "I=", "P=", "C=", "K="};
 
-		while(count < 5)
+		while(count < 6)
 		{
 			retval = parse_args(argc, argv, arr[count]) - 1;
 			sprintf(tmp, "%s=%c%s%c\r\n", arr[count], quote, (retval > 0) ? argv[retval]+2 : " ", quote);
@@ -48,7 +49,7 @@ int main(int argc, char** argv)
 			++count;
 		}
 
-		conf_store(&sock.conf, buffer);
+		conf_init_buff(&sock.conf, buffer);
 
 		if((retval = parse_args(argc, argv, "-s")) != 0)
 			conf_write(&sock.conf, argv[retval]);
@@ -66,39 +67,70 @@ int main(int argc, char** argv)
 	conf_log(&sock.conf);
 
 
-	fd_set readfd;
-	struct timeval tv;
-
-	sock_init(&sock);
-	if(sock_connect(&sock) == -1) return EXIT_FAILURE;
-	puts("Connected!");
-
-	char buff[1024] = "zambo";
-	if(sock_write(&sock, buff, 6) == -1) return EXIT_FAILURE;
-	
-	do
+	if(sock.conf.type == 'c')
 	{
-		char buffer[1024] = "";	
-		if(sock_read(&sock, buffer, 1024) == -1) return EXIT_FAILURE;
-		if(strncmp(buffer, "/quit", 5) == 0) break;	
-		if(strlen(buffer) > 0) printf("%s", buffer);
+
+		fd_set readfd;
+		struct timeval tv;
+
+		sock_init(&sock);
+		if(sock_connect(&sock) == -1) return EXIT_FAILURE;
+		puts("Connected!");
+
+		char buff[1024] = "zambo";
+		if(sock_write(&sock, buff, &bytes) == -1) return EXIT_FAILURE;
 		
-		FD_ZERO(&readfd);
-		FD_SET(0, &readfd);
-
-		tv.tv_sec = 0;
-		tv.tv_usec = 50000;
-
-		if(select(1, &readfd, NULL, NULL, &tv) == -1) break;
-		if(FD_ISSET(0, &readfd))
+		do
 		{
-			memset(buffer, 0, 1024);
+			char buffer[1024] = "";	
+			if(sock_read(&sock, buffer, &bytes) == -1) break;
+			if(strncmp(buffer, "/quit", 1024) == 0) break;	
+			if(strlen(buffer) > 0) printf("SERVER: %s", buffer);
 			
-			retval = read(0, buffer, 1024);
-			if(sock_write(&sock, buffer, retval) == -1) return EXIT_FAILURE;
+			FD_ZERO(&readfd);
+			FD_SET(0, &readfd);
+
+			tv.tv_sec = 0;
+			tv.tv_usec = 50000;
+
+			if(select(1, &readfd, NULL, NULL, &tv) == -1) break;
+			if(FD_ISSET(0, &readfd))
+			{
+				memset(buffer, 0, 1024);
+				
+				retval = read(0, buffer, 1024);
+				if(sock_write(&sock, buffer, &bytes) == -1) break;
+			}
 		}
+		while(1);
+
 	}
-	while(1);
+	else
+	{
+		fd_set readfd;
+		struct timeval tv;
+		sock_init(&sock);
+		if(sock_listen(&sock) == -1) return EXIT_FAILURE;
+		sock_t client;
+
+		while((retval = sock_accept(&sock, &client)) == 1);
+		if(retval == -1) return EXIT_FAILURE;
+
+		puts("CLIENT:");
+		conf_log(&client.conf);
+
+		do
+		{
+			char buffer[1024] = "";	
+			if((retval = sock_read(&client, buffer, &bytes)) == -1) break;
+			if(retval != 0) continue;
+			if(strncmp(buffer, "/quit", 5) == 0) break;	
+			if(strlen(buffer) > 0) printf("CLIENT: %s", buffer);
+			
+			if(sock_write(&client, buffer, &bytes) == -1) break;
+		}
+		while(1);	
+	}
 
 	sock_close(&sock);
 
