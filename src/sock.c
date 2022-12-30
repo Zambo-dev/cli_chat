@@ -152,16 +152,17 @@ int sock_write(sock_t *sock, char *buffer, size_t *size)
 
 	FD_ZERO(&writefd);
 	FD_SET(sock->fd, &writefd);
-
 	tv.tv_sec = 0;
 	tv.tv_usec = 50000;
 
 	select(sock->fd + 1, NULL, &writefd, NULL, &tv);
 	if(fd_errck("select") == -1) return -1;
-
 	if (!FD_ISSET(sock->fd, &writefd)) return 1;
 
-	retval = SSL_write(sock->ssl, buffer, BUFFERLEN);
+	retval = SSL_write(sock->ssl, size, sizeof(size_t));
+	if(ssl_errck("SSL_write", SSL_get_error(sock->ssl, retval)) == -1) return -1;
+
+	retval = SSL_write(sock->ssl, buffer, *size);
 	if(ssl_errck("SSL_write", SSL_get_error(sock->ssl, retval)) == -1) return -1;
 
 	*size = retval;
@@ -169,34 +170,30 @@ int sock_write(sock_t *sock, char *buffer, size_t *size)
 	return 0;
 }
 
-int sock_read(sock_t *sock, char *buffer, size_t *size)
+int sock_read(sock_t *sock, char **buffer, size_t *size)
 {
 	int retval;
-	char buff[BUFFERLEN] = "";
 	fd_set readfd;
 	struct timeval timer;
 
 	FD_ZERO(&readfd);
 	FD_SET(sock->fd, &readfd);
-
 	timer.tv_sec = 0;
 	timer.tv_usec = 50000;
 
 	select(sock->fd + 1, &readfd, NULL, NULL, &timer);
 	if(fd_errck("select") == -1) return -1;
-
 	if (!FD_ISSET(sock->fd, &readfd)) return 1;	
 
-	retval = SSL_read(sock->ssl, buff, BUFFERLEN);
+	retval = SSL_read(sock->ssl, size, sizeof(size_t));
 	if(ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval)) == -1) return -1;
 	
+	*buffer = (*buffer == NULL)
+		? (char *)realloc(*buffer, *size)
+		: (char *)calloc(*size, 1);
 
-	strncat(buffer, buff, BUFFERLEN);
-	memset(buff, 0, BUFFERLEN);
-
-	*size = retval;
-
-	return 0;
+	retval = SSL_read(sock->ssl, *buffer, *size);	
+	return ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval));
 }
 
 int sock_close(sock_t *sock)
