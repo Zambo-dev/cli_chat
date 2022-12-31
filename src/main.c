@@ -111,7 +111,6 @@ int main(int argc, char** argv)
 			}
 		}
 		while(1);
-
 	}
 	else
 	{
@@ -147,7 +146,8 @@ int main(int argc, char** argv)
 		while(1);	
 	}
 
-	sock_close(&sock);
+	if(sock_close(&sock) == -1) return EXIT_FAILURE;
+	puts("Connection succesfully closed!");
 
 	return EXIT_SUCCESS;
 }

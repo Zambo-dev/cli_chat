@@ -51,6 +51,7 @@ int ssl_errck(char *func_name, int errval)
 	switch(errval)
 	{
 		case SSL_ERROR_NONE:
+		case SSL_SENT_SHUTDOWN:
 			retval = 0;
 			break;
 

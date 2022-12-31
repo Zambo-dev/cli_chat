@@ -11,54 +11,37 @@ int sock_init(sock_t *sock)
 	int retval;
 
 	/* Init socket */
-	if ((sock->fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) == -1)
-	{
-		fd_errck("socket");
-		return -1;
-	}
+	sock->fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+	if(fd_errck("socket") == -1) return -1;
 
 	/* Setup s_host data */
 	sock->host.sin_family = AF_INET;
 	sock->host.sin_port = htons(sock->conf.port);
 	sock->host.sin_addr.s_addr = (sock->conf.type == 's') ? INADDR_ANY : inet_addr(sock->conf.ip);
 
-	/* Init SSL context */
 	OpenSSL_add_all_algorithms();
 	SSL_load_error_strings();
+
+	/* Init SSL context */
 	if (sock->conf.type == 's') /* Server CTX */
 	{
-		if ((sock->sslctx = SSL_CTX_new(TLS_server_method())) == NULL)
-		{
-			ssl_errck("SSL_CTX_new", SSL_get_error(sock->ssl, retval));
-			return -1;
-		}
+		if((sock->sslctx = SSL_CTX_new(TLS_server_method())) == NULL) return -1;
+
 		/* set the local certificate from CertFile */
-		if ((retval = SSL_CTX_use_certificate_file(sock->sslctx, sock->conf.certfile, SSL_FILETYPE_PEM)) <= 0)
-		{
-			ssl_errck("SSL_CTX_use_certificate_file", SSL_get_error(sock->ssl, retval));
-			return -1;
-		}
+		retval = SSL_CTX_use_certificate_file(sock->sslctx, sock->conf.certfile, SSL_FILETYPE_PEM);
+		if(ssl_errck("SSL_CTX_use_certificate_file", SSL_get_error(sock->ssl, retval)) == -1) return -1;
+		
 		/* set the private key from KeyFile (may be the same as CertFile) */
-		if ((retval = SSL_CTX_use_PrivateKey_file(sock->sslctx, sock->conf.keyfile, SSL_FILETYPE_PEM)) <= 0)
-		{
-			ssl_errck("SSL_CTX_use_PrivateKey_file", SSL_get_error(sock->ssl, retval));
-			return -1;
-		}
+		retval = SSL_CTX_use_PrivateKey_file(sock->sslctx, sock->conf.keyfile, SSL_FILETYPE_PEM);
+		if(ssl_errck("SSL_CTX_use_PrivateKey_file", SSL_get_error(sock->ssl, retval)) == -1) return -1;
+		
 		/* verify private key */
-		if (!(retval = SSL_CTX_check_private_key(sock->sslctx)))
-		{
-			ssl_errck("SSL_CTX_check_private_key", SSL_get_error(sock->ssl, retval));
-			return -1;
-		}
+		retval = SSL_CTX_check_private_key(sock->sslctx);
+		if(ssl_errck("SSL_CTX_check_private_key", SSL_get_error(sock->ssl, retval)) == -1) return -1;
+		
 	}
 	else /* Client CTX */
-	{
-		if ((sock->sslctx = SSL_CTX_new(TLS_client_method())) == NULL)
-		{
-			ssl_errck("SSL_CTX_new", SSL_get_error(sock->ssl, retval));
-			return -1;
-		}
-	}
+		if((sock->sslctx = SSL_CTX_new(TLS_client_method())) == NULL) return -1;
 
 	return 0;
 }
@@ -77,23 +60,15 @@ int sock_connect(sock_t *sock)
 	while(retval == 1);
 
 	/* Init SSL  */
-	if ((sock->ssl = SSL_new(sock->sslctx)) == NULL)
-	{
-		ssl_errck("SSL_new", SSL_get_error(sock->ssl, retval));
-		return -1;
-	}
-	if ((retval = SSL_set_fd(sock->ssl, sock->fd)) == 0)
-	{
-		ssl_errck("SSL_set_fd", SSL_get_error(sock->ssl, retval));
-		return -1;
-	}
+	if((sock->ssl = SSL_new(sock->sslctx)) == NULL) return -1;
+	
+	retval = SSL_set_fd(sock->ssl, sock->fd);
+	if(ssl_errck("SSL_set_fd", SSL_get_error(sock->ssl, retval)) == -1) return -1;
 
 	do
 	{
 		retval = SSL_connect(sock->ssl);
-		if((retval = ssl_errck("SSL_connect", SSL_get_error(sock->ssl, retval))) == -1)
-			return -1;
-		
+		if((retval = ssl_errck("SSL_connect", SSL_get_error(sock->ssl, retval))) == -1) return -1;
 	}
 	while(retval == 1);
 
@@ -165,8 +140,6 @@ int sock_write(sock_t *sock, char *buffer, size_t *size)
 	retval = SSL_write(sock->ssl, buffer, *size);
 	if(ssl_errck("SSL_write", SSL_get_error(sock->ssl, retval)) == -1) return -1;
 
-	*size = retval;
-
 	return 0;
 }
 
@@ -198,13 +171,16 @@ int sock_read(sock_t *sock, char **buffer, size_t *size)
 
 int sock_close(sock_t *sock)
 {
+	int retval;
+
 	/* Clear sockaddr_in struct */
 	memset(&sock->host, 0, sizeof(struct sockaddr_in));
 
 	/* Shutdown SSL */
 	if (sock->conf.type == 'c')
 	{
-		SSL_shutdown(sock->ssl);
+		if((retval = SSL_shutdown(sock->ssl)) == 0) SSL_read(sock->ssl, NULL, 0);
+		if((retval = ssl_errck("SSL_shutdown", SSL_get_error(sock->ssl, retval))) == -1) return -1;
 		SSL_free(sock->ssl);
 	}
 	SSL_CTX_free(sock->sslctx);
@@ -212,8 +188,6 @@ int sock_close(sock_t *sock)
 	/* Close scoket fd */
 	close(sock->fd);
 	if(fd_errck("close") == -1) return -1;
-
-	sock->fd = 0;
 
 	return 0;
 }
