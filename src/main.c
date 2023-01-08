@@ -98,12 +98,19 @@ int main(int argc, char** argv)
 
 		char *buffer = (char *)calloc(1, 1);
 
-		if((retval = sock_read(&client, &buffer, &bytes)) == -1) return EXIT_FAILURE;
-		if(retval != 0) return EXIT_FAILURE;
+
+		while((retval = sock_read(&client, &buffer, &bytes)) == 1);
+		if(retval != 0)
+		{
+			printf("%d\n", retval);
+			puts("FULC OFF");
+			return EXIT_FAILURE;
+		}
 		strncpy(client.conf.username, buffer, bytes);
 
 		puts("CLIENT:");
 		conf_log(&client.conf);
+
 
 		do
 		{
@@ -119,6 +126,7 @@ int main(int argc, char** argv)
 		while(1);	
 	}
 
+	puts("Closing connection...");
 	if(sock_close(&sock) == -1) return EXIT_FAILURE;
 	puts("Connection succesfully closed!");
 

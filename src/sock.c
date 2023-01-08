@@ -9,8 +9,11 @@ int sock_init(sock_t *sock)
 	int retval;
 
 	/* Init socket */
-	sock->fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-	if(fd_errck("socket") == -1) return -1;
+	if((sock->fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) == -1)
+	{
+		fd_errck("socket");
+		return -1;
+	}
 
 	/* Setup s_host data */
 	sock->host.sin_family = AF_INET;
@@ -26,16 +29,16 @@ int sock_init(sock_t *sock)
 		if((sock->sslctx = SSL_CTX_new(TLS_server_method())) == NULL) return -1;
 
 		/* set the local certificate from CertFile */
-		retval = SSL_CTX_use_certificate_file(sock->sslctx, sock->conf.certfile, SSL_FILETYPE_PEM);
-		if(ssl_errck("SSL_CTX_use_certificate_file", SSL_get_error(sock->ssl, retval)) == -1) return -1;
+		if((retval = SSL_CTX_use_certificate_file(sock->sslctx, sock->conf.certfile, SSL_FILETYPE_PEM)) != 1)
+			return ssl_errck("SSL_CTX_use_certificate_file", SSL_get_error(sock->ssl, retval));
 		
 		/* set the private key from KeyFile (may be the same as CertFile) */
-		retval = SSL_CTX_use_PrivateKey_file(sock->sslctx, sock->conf.keyfile, SSL_FILETYPE_PEM);
-		if(ssl_errck("SSL_CTX_use_PrivateKey_file", SSL_get_error(sock->ssl, retval)) == -1) return -1;
+		if((retval = SSL_CTX_use_PrivateKey_file(sock->sslctx, sock->conf.keyfile, SSL_FILETYPE_PEM)) != 1)
+			return ssl_errck("SSL_CTX_use_PrivateKey_file", SSL_get_error(sock->ssl, retval));
 		
 		/* verify private key */
-		retval = SSL_CTX_check_private_key(sock->sslctx);
-		if(ssl_errck("SSL_CTX_check_private_key", SSL_get_error(sock->ssl, retval)) == -1) return -1;
+		if((retval = SSL_CTX_check_private_key(sock->sslctx)) != 1)
+			return ssl_errck("SSL_CTX_check_private_key", SSL_get_error(sock->ssl, retval));
 		
 	}
 	else /* Client CTX */
@@ -52,7 +55,7 @@ int sock_connect(sock_t *sock)
 	socklen_t len = sizeof(sock->host);
 	do
 	{
-		retval = connect(sock->fd, (struct sockaddr *)&sock->host, len);
+		connect(sock->fd, (struct sockaddr *)&sock->host, len);
 		if((retval = (fd_errck("connect"))) == -1) return -1;
 	}
 	while(retval == 1);
@@ -60,8 +63,11 @@ int sock_connect(sock_t *sock)
 	/* Init SSL  */
 	if((sock->ssl = SSL_new(sock->sslctx)) == NULL) return -1;
 	
-	retval = SSL_set_fd(sock->ssl, sock->fd);
-	if(ssl_errck("SSL_set_fd", SSL_get_error(sock->ssl, retval)) == -1) return -1;
+	if((retval = SSL_set_fd(sock->ssl, sock->fd)) == 0)
+	{
+		ssl_errck("SSL_set_fd", SSL_get_error(sock->ssl, retval));
+		return -1;
+	}
 
 	do
 	{
@@ -75,11 +81,17 @@ int sock_connect(sock_t *sock)
 
 int sock_listen(sock_t *sock)
 {
-	bind(sock->fd, (struct sockaddr *)&sock->host, (socklen_t)sizeof(sock->host));
-	if(fd_errck("bind") == -1) return -1;
+	if(bind(sock->fd, (struct sockaddr *)&sock->host, (socklen_t)sizeof(sock->host)) == -1)
+	{
+		fd_errck("bind");
+		return -1;
+	}
 
-	listen(sock->fd, CONNLIMIT);
-	if(fd_errck("listen") == -1) return -1;
+	if(listen(sock->fd, CONNLIMIT) == -1)
+	{
+		fd_errck("listen");
+		return -1;
+	}
 
 	return 0;
 }
@@ -96,23 +108,34 @@ int sock_accept(sock_t *sock, sock_t *conn)
 	timer.tv_sec = 0;
 	timer.tv_usec = 50000;
 
-	select(sock->fd + 1, &readfd, NULL, NULL, &timer);
-	if(fd_errck("select") == -1) return -1;
-
+	if(select(sock->fd + 1, &readfd, NULL, NULL, &timer) == -1)
+	{
+		fd_errck("select");
+		return -1;
+	}
 	if (!FD_ISSET(sock->fd, &readfd)) return 1;	
 
 	socklen_t socklen = (socklen_t)sizeof(sock->host);
-	retval = accept(sock->fd, (struct sockaddr *)&sock->host, &socklen);
-	if(fd_errck("accept") == -1) return -1;
+	if((retval = accept(sock->fd, (struct sockaddr *)&sock->host, &socklen)) == -1)
+	{
+		fd_errck("accept");
+		return -1;
+	}
 
-	conf_init_args(&conn->conf, 'c', sock->conf.port, inet_ntoa(sock->host.sin_addr), NULL, NULL, NULL);
+	if(conf_init_args(&conn->conf, 'c', sock->conf.port, inet_ntoa(sock->host.sin_addr), NULL, NULL, NULL) == 1) return -1;
 	conn->fd = retval;
 	conn->sslctx = sock->sslctx;
-	conn->ssl = SSL_new(conn->sslctx);
-	SSL_set_fd(conn->ssl, conn->fd);
+	
+	if((conn->ssl = SSL_new(conn->sslctx)) == NULL) return -1;
+	
+	if((retval = SSL_set_fd(conn->ssl, conn->fd)) == 0)
+	{
+		ssl_errck("SSL_set_fd", SSL_get_error(conn->ssl, retval));
+		return -1;
+	}
 
-	retval = SSL_accept(conn->ssl);
-	if(ssl_errck("SSL_accept", SSL_get_error(conn->ssl, retval)) == -1) return -1;
+	if((retval = SSL_accept(conn->ssl)) <= 0)
+		return ssl_errck("SSL_accept", SSL_get_error(conn->ssl, retval));
 
 	return 0;
 }
@@ -128,15 +151,24 @@ int sock_write(sock_t *sock, char *buffer, size_t *size)
 	tv.tv_sec = 0;
 	tv.tv_usec = 50000;
 
-	select(sock->fd + 1, NULL, &writefd, NULL, &tv);
-	if(fd_errck("select") == -1) return -1;
+	if(select(sock->fd + 1, NULL, &writefd, NULL, &tv) == -1)
+	{
+		fd_errck("select");
+		return -1;
+	}
 	if (!FD_ISSET(sock->fd, &writefd)) return 1;
 
-	retval = SSL_write(sock->ssl, size, sizeof(size_t));
-	if(ssl_errck("SSL_write", SSL_get_error(sock->ssl, retval)) == -1) return -1;
-
-	retval = SSL_write(sock->ssl, buffer, *size);
-	if(ssl_errck("SSL_write", SSL_get_error(sock->ssl, retval)) == -1) return -1;
+	if((retval = SSL_write(sock->ssl, size, sizeof(size_t))) <= 0)
+	{
+		ssl_errck("SSL_write", SSL_get_error(sock->ssl, retval));
+		return -1;
+	}
+	
+	if((retval = SSL_write(sock->ssl, buffer, *size)) <= 0)
+	{
+		ssl_errck("SSL_write", SSL_get_error(sock->ssl, retval));
+		return -1;
+	}
 
 	return 0;
 }
@@ -152,19 +184,28 @@ int sock_read(sock_t *sock, char **buffer, size_t *size)
 	timer.tv_sec = 0;
 	timer.tv_usec = 50000;
 
-	select(sock->fd + 1, &readfd, NULL, NULL, &timer);
-	if(fd_errck("select") == -1) return -1;
+	if(select(sock->fd + 1, &readfd, NULL, NULL, &timer) == -1)
+	{
+		fd_errck("select");
+		return -1;
+	}
 	if (!FD_ISSET(sock->fd, &readfd)) return 1;	
 
 	if((retval = SSL_read(sock->ssl, size, sizeof(size_t))) <= 0)
-		return (ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval)) > 0) ? 1 : -1;
+	{
+		ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval));
+		return -1;
+	}
 
 	*buffer = (*buffer != NULL)
 		? (char *)realloc(*buffer, *size)
 		: (char *)calloc(*size, 1);
 
 	if((retval = SSL_read(sock->ssl, *buffer, *size)) <= 0)
-		return (ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval)) > 0) ? 1 : -1;
+	{
+		ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval));
+		return -1;
+	}
 
 	return 0;
 }

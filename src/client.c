@@ -3,15 +3,16 @@
 
 int client_connect(client_t *client)
 {
+	int retval;
 	size_t bytes;
 
 	if(sock_connect(client->sock) == -1) return -1;
 	puts("Connected!");
 
 	bytes = strlen(client->sock->conf.username)+1;
-	if(sock_write(client->sock, client->sock->conf.username, &bytes) == -1) return -1;
+	while((retval = sock_write(client->sock, client->sock->conf.username, &bytes)) != 0);
 
-	return 0;
+	return retval;
 }
 
 int client_read(client_t *client)
@@ -48,7 +49,7 @@ int client_write(client_t *client)
 	if(select(1, &readfd, NULL, NULL, &tv) == -1) return -1;
 	if(FD_ISSET(0, &readfd))
 	{
-		buffer = (buffer == NULL)
+		buffer = (buffer != NULL)
 			? (char *)realloc(buffer, 1024)
 			: (char *)calloc(1024, 1);
 		retval = read(0, buffer, 1024);
