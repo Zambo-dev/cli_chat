@@ -5,6 +5,7 @@
 #include "sock.h"
 #include "err.h"
 #include "conf.h"
+#include "client.h"
 
 
 int parse_args(int argc, char **argv, char *find)
@@ -66,57 +67,28 @@ int main(int argc, char** argv)
 
 	conf_log(&sock.conf);
 
+	sock_init(&sock);
 
 	if(sock.conf.type == 'c')
 	{
+		client_t client;
 
-		fd_set readfd;
-		struct timeval tv;
+		client.sock = &sock;
 
-		sock_init(&sock);
-		if(sock_connect(&sock) == -1) return EXIT_FAILURE;
-		puts("Connected!");
-
-		char buff[] = "zambo00";
-		bytes = strlen(buff)+1;
-		if(sock_write(&sock, buff, &bytes) == -1) return EXIT_FAILURE;
-		
-		char *buffer = NULL;
+		client_connect(&client);
 
 		do
 		{
-			if((retval = sock_read(&sock, &buffer, &bytes)) == -1) break;
-			if(retval == 0)
-			{
-				if(strncmp(buffer, "/quit", 5) == 0) break;	
-				printf("SERVER: %s", buffer);
-				fflush(stdout);
-			}
-
-			FD_ZERO(&readfd);
-			FD_SET(0, &readfd);
-
-			tv.tv_sec = 0;
-			tv.tv_usec = 50000;
-
-			if(select(1, &readfd, NULL, NULL, &tv) == -1) break;
-			if(FD_ISSET(0, &readfd))
-			{
-				buffer = (buffer == NULL)
-					? (char *)realloc(buffer, 1024)
-					: (char *)calloc(1024, 1);
-				retval = read(0, buffer, 1024);
-				bytes = strlen(buffer)+1;
-				if(sock_write(&sock, buffer, &bytes) == -1) break;
-			}
+			retval = client_read(&client);
+			client_write(&client);
 		}
-		while(1);
+		while(retval != 1);
 	}
 	else
 	{
 		fd_set readfd;
 		struct timeval tv;
-		sock_init(&sock);
+
 		if(sock_listen(&sock) == -1) return EXIT_FAILURE;
 		sock_t client;
 

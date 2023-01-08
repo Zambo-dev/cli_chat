@@ -11,11 +11,6 @@
 #define BUFFERLEN 256
 #define CONNLIMIT 16
 
-typedef struct MSG_T
-{
-	int len;
-	char *buff;
-} msg_t;
 
 typedef struct SOCK_T
 {

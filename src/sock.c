@@ -4,8 +4,6 @@
 #include "conf.h"
 
 
-pthread_mutex_t sock_mtx = PTHREAD_MUTEX_INITIALIZER;
-
 int sock_init(sock_t *sock)
 {
 	int retval;
