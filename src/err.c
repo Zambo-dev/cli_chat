@@ -15,13 +15,13 @@ int fd_errck(char *func_name)
 	switch(errno)
 	{
 		case 0:
-			retval = 0;
+			retval = -1;
 			break;
 
 		case 114:
 		case EAGAIN:
 		case EINPROGRESS:
-			retval = 1;
+			retval = 0;
 			break;
 
 		default:
@@ -52,13 +52,13 @@ int ssl_errck(char *func_name, int errval)
 	{
 		case SSL_ERROR_NONE:
 		case SSL_SENT_SHUTDOWN:
-			retval = 0;
+			retval = -1;
 			break;
 
 		case SSL_ERROR_WANT_CONNECT:
 		case SSL_ERROR_WANT_READ:
 		case SSL_ERROR_WANT_WRITE:
-			retval = 1;
+			retval = 0;
 			break;
 
 		default:
