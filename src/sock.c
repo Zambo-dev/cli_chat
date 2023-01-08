@@ -159,7 +159,7 @@ int sock_read(sock_t *sock, char **buffer, size_t *size)
 	retval = SSL_read(sock->ssl, size, sizeof(size_t));
 	if(ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval)) == -1) return -1;
 	
-	*buffer = (*buffer == NULL)
+	*buffer = (*buffer != NULL)
 		? (char *)realloc(*buffer, *size)
 		: (char *)calloc(*size, 1);
 
