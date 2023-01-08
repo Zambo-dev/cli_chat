@@ -156,15 +156,17 @@ int sock_read(sock_t *sock, char **buffer, size_t *size)
 	if(fd_errck("select") == -1) return -1;
 	if (!FD_ISSET(sock->fd, &readfd)) return 1;	
 
-	retval = SSL_read(sock->ssl, size, sizeof(size_t));
-	if(ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval)) == -1) return -1;
-	
+	if((retval = SSL_read(sock->ssl, size, sizeof(size_t))) <= 0)
+		return (ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval)) > 0) ? 1 : -1;
+
 	*buffer = (*buffer != NULL)
 		? (char *)realloc(*buffer, *size)
 		: (char *)calloc(*size, 1);
 
-	retval = SSL_read(sock->ssl, *buffer, *size);	
-	return ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval));
+	if((retval = SSL_read(sock->ssl, *buffer, *size)) <= 0)
+		return (ssl_errck("SSL_read", SSL_get_error(sock->ssl, retval)) > 0) ? 1 : -1;
+
+	return 0;
 }
 
 int sock_close(sock_t *sock)

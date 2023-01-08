@@ -90,19 +90,20 @@ int main(int argc, char** argv)
 		struct timeval tv;
 
 		if(sock_listen(&sock) == -1) return EXIT_FAILURE;
+		puts("Listening...");
 		sock_t client;
 
 		while((retval = sock_accept(&sock, &client)) == 1);
 		if(retval == -1) return EXIT_FAILURE;
-
-		puts("CLIENT:");
-		conf_log(&client.conf);
 
 		char *buffer = (char *)calloc(1, 1);
 
 		if((retval = sock_read(&client, &buffer, &bytes)) == -1) return EXIT_FAILURE;
 		if(retval != 0) return EXIT_FAILURE;
 		strncpy(client.conf.username, buffer, bytes);
+
+		puts("CLIENT:");
+		conf_log(&client.conf);
 
 		do
 		{

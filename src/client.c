@@ -20,13 +20,13 @@ int client_read(client_t *client)
 	size_t bytes;
 	char *buffer = NULL;
 
-	if((retval = sock_read(client->sock, &buffer, &bytes)) == -1) return -1;
-	if(retval == 0)
-	{
-		if(strncmp(buffer, "/quit", 5) == 0) return 1;	
-		printf("SERVER: %s", buffer);
-		fflush(stdout);
-	}
+	if((retval = sock_read(client->sock, &buffer, &bytes)) != 0) return -1;
+
+	printf("SERVER: %s", buffer);
+	fflush(stdout);
+
+	if(strncmp(buffer, "/quit", 5) == 0) return 1;	
+
 
 	return 0;
 }
