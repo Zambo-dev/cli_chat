@@ -30,7 +30,6 @@ int main(int argc, char** argv)
 	/* Check if socket is client or server */
 	sock.conf.type = argv[retval][0];
 
-
 	if(parse_args(argc, argv, "-c") != 0)
 	{
 		char tmp[BUFFILE] = {0};
@@ -93,8 +92,6 @@ int main(int argc, char** argv)
 		bytes = strlen(sock.conf.username)+1;
 		sock_write(&sock, sock.conf.username, &bytes);
 		
-		
-
 		do
 		{
 			FD_ZERO(&sigfd);
@@ -110,8 +107,6 @@ int main(int argc, char** argv)
 					printf("Server: %s", buffer);
 					memset(buffer, 0, strlen(buffer)+1);
 				}
-
-				
 			}
 
 			FD_ZERO(&sigfd);
@@ -184,7 +179,6 @@ int main(int argc, char** argv)
 		puts("CLIENT:");
 		conf_log(&client.conf);
 
-
 		do
 		{	
 			FD_ZERO(&sigfd);
@@ -209,11 +203,12 @@ int main(int argc, char** argv)
 					if(select(client.fd+1,NULL, &sigfd, NULL, &tv) > 0 && FD_ISSET(client.fd, &sigfd))
 						while(sock_write(&client, buffer, &bytes) != 0);
 
+					if(strncmp(buffer, "/quit", 5) == 0) break;
+
 					memset(buffer, 0, strlen(buffer)+1);
 				}
 			}
 
-			if(strncmp(buffer, "/quit", 5) == 0) break;
 		}
 		while(1);	
 	}
