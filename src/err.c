@@ -4,6 +4,20 @@
 #include "string.h"
 
 
+void fd_errlog(char *func_name)
+{
+	printf("%s -> ERROR %d: %s\n", func_name, errno, strerror(errno));
+	fflush(stdout);
+}
+
+void ssl_errlog(char *func_name, int errval)
+{
+	char error[128];
+	snprintf(error, 128, "%s -> %s", func_name, ERR_error_string(errval, NULL));
+	printf("%s\n", error);
+	fflush(stdout);
+}
+
 /* 
 * Check if errno is set and if so,
 * print the relative error string
@@ -63,7 +77,7 @@ int ssl_errck(char *func_name, int errval)
 
 		default:
 			char error[128];
-			snprintf(error, 128, "%s -> %s", func_name, ERR_error_string(retval, NULL));
+			snprintf(error, 128, "%s -> %s", func_name, ERR_error_string(errval, NULL));
 			printf("%s\n", error);
 			fflush(stdout);
 			retval = -1;
