@@ -1,7 +1,14 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include "include.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include "err.h"
 
 #define DATALEN 256
 #define BUFFILE 2048

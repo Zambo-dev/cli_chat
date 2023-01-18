@@ -1,5 +1,4 @@
 #include "conf.h"
-#include "err.h"
 
 
 int conf_read(conf_t *conf, char *filepath)

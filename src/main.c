@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "include.h"
+#include <unistd.h>
+#include <sys/select.h>
 #include "sock.h"
 #include "err.h"
 #include "conf.h"

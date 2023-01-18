@@ -1,7 +1,4 @@
-#include <signal.h>
 #include "sock.h"
-#include "err.h"
-#include "conf.h"
 
 
 int sock_init(sock_t *sock)

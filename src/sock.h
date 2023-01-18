@@ -1,11 +1,17 @@
 #ifndef SOCK_H
 #define SOCK_H
 
+#include <signal.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
+#include "err.h"
+#include "conf.h"
 #include "conf.h"
 
 #define BUFFERLEN 256
