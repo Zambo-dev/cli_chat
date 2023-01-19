@@ -12,4 +12,8 @@ typedef struct CLIENT_T
 } client_t;
 
 
+int client_connect(client_t *client);
+int client_read(client_t *client);
+int client_write(client_t *client);
+
 #endif

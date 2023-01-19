@@ -6,6 +6,7 @@
 #include "sock.h"
 #include "err.h"
 #include "conf.h"
+#include "client.h"
 
 
 int parse_args(int argc, char **argv, char *find)
@@ -73,76 +74,18 @@ int main(int argc, char** argv)
 		char *buffer = NULL;
 		fd_set sigfd;
 		struct timeval tv;
+		client_t client;
 
-		while((retval = sock_connect(&sock)) != 0);
-		puts("Connection succesfull!");
+		client.sock = &sock;
+
+		if(client_connect(&client) == -1) return EXIT_FAILURE;
+		puts("Connected!");
 		fflush(stdout);
-
-		do
-		{
-			FD_ZERO(&sigfd);
-			FD_SET(sock.fd, &sigfd);
-
-			tv.tv_sec = 0;
-			tv.tv_usec = 50000;
-
-			select(sock.fd+1, NULL, &sigfd, NULL, &tv);
-		}
-		while(!FD_ISSET(sock.fd, &sigfd));
-
-		bytes = strlen(sock.conf.username)+1;
-		sock_write(&sock, sock.conf.username, &bytes);
 		
 		do
 		{
-			FD_ZERO(&sigfd);
-			FD_SET(sock.fd, &sigfd);
-
-			tv.tv_sec = 0;
-			tv.tv_usec = 50000;
-
-			if(select(sock.fd+1, &sigfd, NULL, NULL, &tv) > 0 && FD_ISSET(sock.fd, &sigfd))
-			{
-				if(sock_read(&sock, &buffer, &bytes) == 0)
-				{
-					printf("Server: %s", buffer);
-					memset(buffer, 0, strlen(buffer)+1);
-				}
-			}
-
-			FD_ZERO(&sigfd);
-			FD_SET(0, &sigfd);
-
-			tv.tv_sec = 0;
-			tv.tv_usec = 50000;
-
-			if(select(1, &sigfd, NULL, NULL, &tv) > 0 && FD_ISSET(0, &sigfd))
-			{	
-				FD_CLR(0, &sigfd);
-
-				char buff[1024];
-				if(read(0, buff, 1024) > 0)
-				{
-					do
-					{
-						FD_ZERO(&sigfd);
-						FD_SET(sock.fd, &sigfd);
-
-						tv.tv_sec = 0;
-						tv.tv_usec = 50000;
-						
-						select(sock.fd+1,NULL, &sigfd, NULL, &tv);
-					}
-					while(!FD_ISSET(sock.fd, &sigfd));
-					
-					bytes = strlen(buff)+1;
-					sock_write(&sock, buff, &bytes);
-
-					
-
-					memset(buff, 0, strlen(buff)+1);
-				}
-			}
+			if(client_read(&client) == -1) break;
+			client_write(&client);
 		}
 		while(1);
 	}

@@ -69,12 +69,8 @@ int sock_connect(sock_t *sock)
 
 	/* Connect to the server */
 	socklen_t len = sizeof(sock->host);
-	do
-	{
-		if(connect(sock->fd, (struct sockaddr *)&sock->host, len) == 0) break;
-		if((retval = (fd_errck("connect"))) == -1) return -1;
-	}
-	while(retval == 1);
+
+	if(connect(sock->fd, (struct sockaddr *)&sock->host, len) != 0) return -1;
 
 	/* Init SSL  */
 	if((sock->ssl = SSL_new(sock->sslctx)) == NULL)
