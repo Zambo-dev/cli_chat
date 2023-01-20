@@ -7,8 +7,7 @@ int client_connect(client_t *client)
 	size_t bytes;
 	struct timeval tv;
 
-	while((retval = sock_connect(client->sock)) != 0);
-	if(retval == -1) return -1;
+	if(sock_connect(client->sock) == -1) return -1;
 
 	do
 	{
