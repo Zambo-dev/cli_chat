@@ -74,7 +74,7 @@ int client_write(client_t *client)
 		FD_CLR(0, &client->sigfd);
 
 		char buffer[1024] = {0};
-		if(read(0, buffer, 1024) > 0)
+		if((bytes = read(0, buffer, 1024)) > 0)
 		{
 			do
 			{
@@ -88,7 +88,7 @@ int client_write(client_t *client)
 			}
 			while(!FD_ISSET(client->sock->fd, &client->sigfd));
 			
-			bytes = strlen(buffer)+1;
+			++bytes;
 			if(sock_write(client->sock, buffer, &bytes) == -1) return -1;
 		}
 	}
