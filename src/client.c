@@ -1,6 +1,8 @@
 #include "client.h"
 
 
+static fd_set sigfd;
+
 int client_connect(client_t *client)
 {
 	int retval;
@@ -11,15 +13,15 @@ int client_connect(client_t *client)
 
 	do
 	{
-		FD_ZERO(&client->sigfd);
-		FD_SET(client->sock->fd, &client->sigfd);
+		FD_ZERO(&sigfd);
+		FD_SET(client->sock->fd, &sigfd);
 
 		tv.tv_sec = 0;
 		tv.tv_usec = 50000;
 
-		if(select(client->sock->fd+1, NULL, &client->sigfd, NULL, &tv) == -1) return -1;
+		if(select(client->sock->fd+1, NULL, &sigfd, NULL, &tv) == -1) return -1;
 	}
-	while(!FD_ISSET(client->sock->fd, &client->sigfd));
+	while(!FD_ISSET(client->sock->fd, &sigfd));
 
 	bytes = strlen(client->sock->conf.username)+1;
 	if(sock_write(client->sock, client->sock->conf.username, &bytes) == -1) return -1;
@@ -33,14 +35,14 @@ int client_read(client_t *client)
 	char *buffer = NULL;
 	struct timeval tv;
 
-	FD_ZERO(&client->sigfd);
-	FD_SET(client->sock->fd, &client->sigfd);
+	FD_ZERO(&sigfd);
+	FD_SET(client->sock->fd, &sigfd);
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 50000;
 
-	if(select(client->sock->fd+1, &client->sigfd, NULL, NULL, &tv) > 0 
-		&& FD_ISSET(client->sock->fd, &client->sigfd)
+	if(select(client->sock->fd+1, &sigfd, NULL, NULL, &tv) > 0 
+		&& FD_ISSET(client->sock->fd, &sigfd)
 		&& sock_read(client->sock, &buffer, &bytes) == 0)
 	{
 		printf("Server: %s", buffer);
@@ -63,30 +65,30 @@ int client_write(client_t *client)
 	size_t bytes;
 	struct timeval tv;
 
-	FD_ZERO(&client->sigfd);
-	FD_SET(0, &client->sigfd);
+	FD_ZERO(&sigfd);
+	FD_SET(0, &sigfd);
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 50000;
 
-	if(select(1, &client->sigfd, NULL, NULL, &tv) > 0 && FD_ISSET(0, &client->sigfd))
+	if(select(1, &sigfd, NULL, NULL, &tv) > 0 && FD_ISSET(0, &sigfd))
 	{	
-		FD_CLR(0, &client->sigfd);
+		FD_CLR(0, &sigfd);
 
 		char buffer[1024] = {0};
 		if((bytes = read(0, buffer, 1024)) > 0)
 		{
 			do
 			{
-				FD_ZERO(&client->sigfd);
-				FD_SET(client->sock->fd, &client->sigfd);
+				FD_ZERO(&sigfd);
+				FD_SET(client->sock->fd, &sigfd);
 
 				tv.tv_sec = 0;
 				tv.tv_usec = 50000;
 				
-				select(client->sock->fd+1,NULL, &client->sigfd, NULL, &tv);
+				select(client->sock->fd+1,NULL, &sigfd, NULL, &tv);
 			}
-			while(!FD_ISSET(client->sock->fd, &client->sigfd));
+			while(!FD_ISSET(client->sock->fd, &sigfd));
 			
 			++bytes;
 			if(sock_write(client->sock, buffer, &bytes) == -1) return -1;

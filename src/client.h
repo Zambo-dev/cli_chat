@@ -7,7 +7,6 @@
 
 typedef struct CLIENT_T
 {
-	fd_set sigfd;
 	sock_t *sock;
 } client_t;
 
