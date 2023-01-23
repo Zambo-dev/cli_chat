@@ -7,6 +7,7 @@
 #include "err.h"
 #include "conf.h"
 #include "client.h"
+#include "server.h"
 
 
 int parse_args(int argc, char **argv, char *find)
@@ -94,65 +95,20 @@ int main(int argc, char** argv)
 		char *buffer = NULL;
 		fd_set sigfd;
 		struct timeval tv;
+		server_t server;
+
+		server.sock = &sock;
+		for(int i=0; i<CONNLIMIT; ++i)
+			server.list[i] = NULL;
+
 
 		if(sock_listen(&sock) == -1) return EXIT_FAILURE;
 		puts("Listening...");
-		sock_t client;
-
-		while((retval = sock_accept(&sock, &client)) != 0);
-		puts("Connection accepted!");
-		fflush(stdout);
-
-		do
-		{
-			FD_ZERO(&sigfd);
-			FD_SET(client.fd, &sigfd);
-
-			tv.tv_sec = 0;
-			tv.tv_usec = 50000;
-
-			select(client.fd+1, &sigfd, NULL, NULL, &tv);
-		}
-		while(!FD_ISSET(client.fd, &sigfd));
-		
-		sock_read(&client, &buffer, &bytes);
-		strncpy(client.conf.username, buffer, bytes);
-
-		FD_CLR(client.fd, &sigfd);
-
-		puts("CLIENT:");
-		conf_log(&client.conf);
 
 		do
 		{	
-			FD_ZERO(&sigfd);
-			FD_SET(client.fd, &sigfd);
-
-			tv.tv_sec = 0;
-			tv.tv_usec = 50000;
-
-			if(select(client.fd+1, &sigfd, NULL, NULL, &tv) > 0 && FD_ISSET(client.fd, &sigfd))
-			{
-				if(sock_read(&client, &buffer, &bytes) == 0)
-				{
-					printf("%s: %s\n", client.conf.username, buffer);
-					fflush(stdout);
-			
-					FD_ZERO(&sigfd);
-					FD_SET(client.fd, &sigfd);
-
-					tv.tv_sec = 0;
-					tv.tv_usec = 50000;
-
-					if(select(client.fd+1,NULL, &sigfd, NULL, &tv) > 0 && FD_ISSET(client.fd, &sigfd))
-						while(sock_write(&client, buffer, &bytes) != 0);
-
-					if(strncmp(buffer, "/quit", 5) == 0) break;
-
-					memset(buffer, 0, strlen(buffer)+1);
-				}
-			}
-
+			server_accept(&server);
+			server_read(&server);
 		}
 		while(1);	
 	}
