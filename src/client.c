@@ -43,18 +43,18 @@ int client_read(client_t *client)
 	tv.tv_sec = 0;
 	tv.tv_usec = 50000;
 
-	if(select(client->sock->fd+1, &sigfd, NULL, NULL, &tv) > 0 
-		&& FD_ISSET(client->sock->fd, &sigfd)
-		&& sock_read(client->sock, &buffer, &bytes) == 0)
-	{
-		FD_CLR(client->sock->fd, &sigfd);
+	if(select(client->sock->fd+1, &sigfd, NULL, NULL, &tv) <= 0 
+		|| !FD_ISSET(client->sock->fd, &sigfd)
+		|| sock_read(client->sock, &buffer, &bytes) == -1)
+		return -1;
+	
+	FD_CLR(client->sock->fd, &sigfd);
 
-		printf("%s", buffer);
-		fflush(stdout);
+	printf("%s", buffer);
+	fflush(stdout);
 
-		if(buffer != NULL) free(buffer);
-	}
-
+	if(buffer != NULL) free(buffer);
+	
 	return 0;
 }
 
@@ -69,29 +69,30 @@ int client_write(client_t *client)
 	tv.tv_sec = 0;
 	tv.tv_usec = 50000;
 
-	if(select(1, &sigfd, NULL, NULL, &tv) > 0 && FD_ISSET(0, &sigfd))
-	{	
-		FD_CLR(0, &sigfd);
+	if(select(1, &sigfd, NULL, NULL, &tv) <= 0 || !FD_ISSET(0, &sigfd)) return -1;
 
-		char buffer[1024] = {0};
-		if((bytes = read(0, buffer, 1024)) > 0)
+	FD_CLR(0, &sigfd);
+
+	char buffer[1024] = {0};
+	if((bytes = read(0, buffer, 1024)) > 0)
+	{
+		do
 		{
-			do
-			{
-				FD_ZERO(&sigfd);
-				FD_SET(client->sock->fd, &sigfd);
+			FD_ZERO(&sigfd);
+			FD_SET(client->sock->fd, &sigfd);
 
-				tv.tv_sec = 0;
-				tv.tv_usec = 50000;
-				
-				select(client->sock->fd+1,NULL, &sigfd, NULL, &tv);
-			}
-			while(!FD_ISSET(client->sock->fd, &sigfd));
-			FD_CLR(client->sock->fd, &sigfd);
-
-			++bytes;
-			if(sock_write(client->sock, buffer, &bytes) == -1) return -1;
+			tv.tv_sec = 0;
+			tv.tv_usec = 50000;
+			
+			select(client->sock->fd+1,NULL, &sigfd, NULL, &tv);
 		}
+		while(!FD_ISSET(client->sock->fd, &sigfd));
+		FD_CLR(client->sock->fd, &sigfd);
+
+		++bytes;
+		if(sock_write(client->sock, buffer, &bytes) == -1) return -1;
+
+		if(strncmp(buffer, "/quit", 5) == 0) return 1;
 	}
 
 	return 0;

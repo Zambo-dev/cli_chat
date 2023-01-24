@@ -127,9 +127,8 @@ int sock_accept(sock_t *sock, sock_t *conn)
 
 	if(conf_init_args(&conn->conf, 'c', sock->conf.port, inet_ntoa(sock->host.sin_addr), NULL, NULL, NULL) == 1) return -1;
 	conn->fd = retval;
-	conn->sslctx = sock->sslctx;
 	
-	if((conn->ssl = SSL_new(conn->sslctx)) == NULL)
+	if((conn->ssl = SSL_new(sock->sslctx)) == NULL)
 	{
 		ssl_errlog("SSL_new", SSL_get_error(conn->ssl, 0));
 		return -1;
@@ -197,11 +196,13 @@ int sock_close(sock_t *sock)
 	/* Shutdown SSL */
 	if (sock->conf.type == 'c')
 	{
-		if((retval = SSL_shutdown(sock->ssl)) == 0) SSL_read(sock->ssl, NULL, 0);
-		if((retval = ssl_errck("SSL_shutdown", SSL_get_error(sock->ssl, retval))) == -1) return -1;
+		SSL_shutdown(sock->ssl);
 		SSL_free(sock->ssl);
+
+		sock->ssl = NULL;
 	}
-	SSL_CTX_free(sock->sslctx);
+
+	if(sock->sslctx != NULL) SSL_CTX_free(sock->sslctx);
 
 	/* Close scoket fd */
 	close(sock->fd);

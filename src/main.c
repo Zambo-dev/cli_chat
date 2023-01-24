@@ -68,6 +68,10 @@ int main(int argc, char** argv)
 
 	conf_log(&sock.conf);
 
+	SSL_load_error_strings();
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+
 	sock_init(&sock);
 
 	if(sock.conf.type == 'c')		// -------------------------------------- CLIENT
@@ -85,8 +89,8 @@ int main(int argc, char** argv)
 		
 		do
 		{
-			if(client_read(&client) == -1) break;
-			client_write(&client);
+			client_read(&client);
+			if(client_write(&client) == 1) break;
 		}
 		while(1);
 	}
