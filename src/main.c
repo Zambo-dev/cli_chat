@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/select.h>
 #include "sock.h"
@@ -89,14 +90,14 @@ int main(int argc, char** argv)
 		
 		do
 		{
-			client_read(&client);
+			if(client_read(&client) == -1) break;
 			if(client_write(&client) == 1) break;
 		}
 		while(1);
 	}
 	else					// -------------------------------------- SERVER
 	{
-		char *buffer = NULL;
+		char buffer[1024];
 		fd_set sigfd;
 		struct timeval tv;
 		server_t server;
@@ -113,8 +114,16 @@ int main(int argc, char** argv)
 		{	
 			server_accept(&server);
 			server_read(&server);
+			if(server_cmd(&server) == -1) break;
 		}
 		while(1);	
+
+		server_write(&server, "/quit\0", 6);
+
+		for(int i=0; i<CONNLIMIT; ++i)
+			if(server.list[i] != NULL)
+				sock_close(server.list[i]);
+
 	}
 
 	puts("Closing connection...");

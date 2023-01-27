@@ -127,6 +127,7 @@ int sock_accept(sock_t *sock, sock_t *conn)
 
 	if(conf_init_args(&conn->conf, 'c', sock->conf.port, inet_ntoa(sock->host.sin_addr), NULL, NULL, NULL) == 1) return -1;
 	conn->fd = retval;
+	conn->sslctx = NULL;
 	
 	if((conn->ssl = SSL_new(sock->sslctx)) == NULL)
 	{

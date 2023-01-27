@@ -14,5 +14,6 @@ typedef struct SERVER_T
 int server_accept(server_t *server);
 int server_read(server_t *server);
 int server_write(server_t *server, char *buffer, size_t bytes);
+int server_cmd(server_t *server);
 
 #endif

@@ -23,8 +23,6 @@ int client_connect(client_t *client)
 	}
 	while(!FD_ISSET(client->sock->fd, &sigfd));
 
-	FD_CLR(client->sock->fd, &sigfd);
-
 	bytes = strlen(client->sock->conf.username)+1;
 	if(sock_write(client->sock, client->sock->conf.username, &bytes) == -1) return -1;
 
@@ -46,12 +44,11 @@ int client_read(client_t *client)
 	if(select(client->sock->fd+1, &sigfd, NULL, NULL, &tv) <= 0 
 		|| !FD_ISSET(client->sock->fd, &sigfd)
 		|| sock_read(client->sock, &buffer, &bytes) == -1)
-		return -1;
-	
-	FD_CLR(client->sock->fd, &sigfd);
+		return 0;
+
+	if(strncmp(buffer, "/quit", 5) == 0) return -1;
 
 	printf("%s", buffer);
-	fflush(stdout);
 
 	if(buffer != NULL) free(buffer);
 	
@@ -71,8 +68,6 @@ int client_write(client_t *client)
 
 	if(select(1, &sigfd, NULL, NULL, &tv) <= 0 || !FD_ISSET(0, &sigfd)) return -1;
 
-	FD_CLR(0, &sigfd);
-
 	char buffer[1024] = {0};
 	if((bytes = read(0, buffer, 1024)) > 0)
 	{
@@ -87,7 +82,6 @@ int client_write(client_t *client)
 			select(client->sock->fd+1,NULL, &sigfd, NULL, &tv);
 		}
 		while(!FD_ISSET(client->sock->fd, &sigfd));
-		FD_CLR(client->sock->fd, &sigfd);
 
 		++bytes;
 		if(sock_write(client->sock, buffer, &bytes) == -1) return -1;

@@ -40,8 +40,6 @@ int server_accept(server_t *server)
 		select(server->list[idx]->fd+1, &sigfd, NULL, NULL, &tv);
 	}
 	while(!FD_ISSET(server->list[idx]->fd, &sigfd));
-	
-	FD_CLR(server->list[idx]->fd, &sigfd);
 
 	if(sock_read(server->list[idx], &buffer, &bytes) == -1)
 	{
@@ -85,8 +83,6 @@ int server_read(server_t *server)
 	for(int i=0; i<CONNLIMIT; ++i)
 	{
 		if(server->list[i] == NULL || !FD_ISSET(server->list[i]->fd, &sigfd)) continue;
-		
-		FD_CLR(server->list[i]->fd, &sigfd);
 
 		if(sock_read(server->list[i], &buffer, &bytes) == -1) return -1;
 						
@@ -94,7 +90,6 @@ int server_read(server_t *server)
 		{
 			if(sock_close(server->list[i]) == 0)
 				printf("Closed connection with %s\n", server->list[i]->conf.username);
-			fflush(stdout);
 			
 			free(server->list[i]);
 			server->list[i] = NULL;
@@ -107,7 +102,6 @@ int server_read(server_t *server)
 		sprintf(msg, "%s: %s", server->list[i]->conf.username, buffer);
 
 		puts(msg);
-		fflush(stdout);
 
 		if(server_write(server, msg, len) == -1) return -1;
 
@@ -141,9 +135,27 @@ int server_write(server_t *server, char *buffer, size_t bytes)
 	{
 		if(server->list[i] == NULL || !FD_ISSET(server->list[i]->fd, &sigfd)) continue;
 	
-		FD_SET(server->list[i]->fd, &sigfd);
 		sock_write(server->list[i], buffer, &bytes);
 	}
+
+	return 0;
+}
+
+int server_cmd(server_t *server)
+{
+	struct timeval tv;
+	char buffer[1024] = {0};
+
+	FD_ZERO(&sigfd);
+	FD_SET(0, &sigfd);
+	
+	tv.tv_sec = 0;
+	tv.tv_usec = 5000;
+
+	if(select(1, &sigfd, NULL, NULL, &tv) <= 0 || !FD_ISSET(0, &sigfd)) return 0;
+
+	if(read(0, buffer, 1024) > 0)
+		if(strncmp(buffer, "/quit", 5) == 0) return -1;
 
 	return 0;
 }
