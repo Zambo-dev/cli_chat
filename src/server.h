@@ -1,21 +1,19 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include "include.h"
+#include <sys/select.h>
 #include "sock.h"
 
 
-typedef struct THREAD_DATA
+typedef struct SERVER_T
 {
 	sock_t *sock;
-	int idx;
-} tdata_t;
+	sock_t *list[CONNLIMIT];
+} server_t;
 
-int server_conns_init(conn_t **conn, SSL_CTX *server_ctx, int fd, char *ip);
-int server_conns_close(conn_t **conn, int idx);
-int server_conns_getfree(conn_t **conns);
-int server_connect(sock_t *server);
-int server_recv(tdata_t *data);
-int server_send(conn_t **conns, char *buffer);
+int server_accept(server_t *server);
+int server_read(server_t *server);
+int server_write(server_t *server, char *buffer, size_t bytes);
+int server_cmd(server_t *server);
 
 #endif

@@ -1,29 +1,88 @@
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 #include "err.h"
+#include "string.h"
 
 
-void fd_errck(char *func_name)
+void fd_errlog(char *func_name)
 {
-	/* Lock errno mutex */
-	pthread_mutex_lock(&errno_mtx);
-	
-	if(errno != 0)
-	{	
-		/* Print errno's value and string */
-		printf("%s -> ERROR %d: %s\n", func_name, errno, strerror(errno));
-		/* Reset errno */
-		errno = 0;
-	}
-
+	printf("%s -> ERROR %d: %s\n", func_name, errno, strerror(errno));
 	fflush(stdout);
-
-	/* Unlock errno mutex */
-	pthread_mutex_unlock(&errno_mtx);
 }
 
-void ssl_errck(char *func_name, int retval)
+void ssl_errlog(char *func_name, int errval)
 {
-	char err[BUFFERLEN];
-	snprintf(err, BUFFERLEN, "%s -> %s", func_name, ERR_error_string(retval, NULL));
-	printf("%s\n", err);
+	char error[128];
+	snprintf(error, 128, "%s -> %s", func_name, ERR_error_string(errval, NULL));
+	printf("%s\n", error);
 	fflush(stdout);
+}
+
+/* 
+* Check if errno is set and if so,
+* print the relative error string
+* return: no error, -1 error
+*/
+int fd_errck(char *func_name)
+{
+	int retval;
+	switch(errno)
+	{
+		case 0:
+			retval = 0;
+			break;
+
+		case 114:
+		case EAGAIN:
+		case EINPROGRESS:
+			retval = 1;
+			break;
+
+		default:
+			/* Print errno's value and string */
+			printf("%s -> ERROR %d: %s\n", func_name, errno, strerror(errno));
+			fflush(stdout);
+			retval = -1;
+			break;
+	}
+
+	/* Reset errno */
+	errno = 0;
+
+	return retval;
+}
+
+/* 
+* Check ssl return value and
+* print the relative error string
+* return: 0 no error, -1 error
+*/
+int ssl_errck(char *func_name, int errval)
+{
+	int retval;
+
+	fflush(stdout);
+	switch(errval)
+	{
+		case SSL_ERROR_NONE:
+		case SSL_SENT_SHUTDOWN:
+			retval = 0;
+			break;
+
+		case SSL_ERROR_WANT_CONNECT:
+		case SSL_ERROR_WANT_READ:
+		case SSL_ERROR_WANT_WRITE:
+			retval = 1;
+			break;
+
+		default:
+			char error[128];
+			snprintf(error, 128, "%s -> %s", func_name, ERR_error_string(errval, NULL));
+			printf("%s\n", error);
+			fflush(stdout);
+			retval = -1;
+			break;
+	}
+
+	return retval;
 }

@@ -1,12 +1,17 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include "include.h"
+#include <sys/select.h>
 #include "sock.h"
 
 
-int client_connect(sock_t *client);
-int client_recv(sock_t *client);
-int client_send(sock_t *client);
+typedef struct CLIENT_T
+{
+	sock_t *sock;
+} client_t;
+
+int client_connect(client_t *client);
+int client_read(client_t *client);
+int client_write(client_t *client);
 
 #endif
