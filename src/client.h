@@ -2,6 +2,7 @@
 #define CLIENT_H
 
 #include <sys/select.h>
+#include <sys/ioctl.h>
 #include "sock.h"
 
 

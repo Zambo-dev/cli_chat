@@ -87,7 +87,13 @@ int main(int argc, char** argv)
 		if(client_connect(&client) == -1) return EXIT_FAILURE;
 		puts("Connected!");
 		fflush(stdout);
+
+		struct winsize w;
+    	ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
 		
+		printf("\x1b[s\x1b[%d;1H", w.ws_row);
+		fflush(stdout);
+
 		do
 		{
 			if(client_read(&client) == -1) break;
