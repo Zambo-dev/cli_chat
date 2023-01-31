@@ -48,7 +48,11 @@ int client_read(client_t *client)
 
 	if(strncmp(buffer, "/quit", 5) == 0) return -1;
 
-	printf("%s", buffer);
+	struct winsize win;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &win);
+
+	printf("\x1b[u%s\x1b[s\x1b[%d;1H", buffer, win.ws_row);
+	fflush(stdout);
 
 	if(buffer != NULL) free(buffer);
 	
@@ -87,6 +91,8 @@ int client_write(client_t *client)
 		if(sock_write(client->sock, buffer, &bytes) == -1) return -1;
 
 		if(strncmp(buffer, "/quit", 5) == 0) return 1;
+		printf("\x1b[1T\x1b[2K");
+		fflush(stdout);
 	}
 
 	return 0;
